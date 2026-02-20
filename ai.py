@@ -10,10 +10,12 @@ This module exposes a single function `get_response(prompt)` which returns a str
 import os
 import random
 import time
-import dotenv
 
-dotenv.load_dotenv("keys.env")  # Load .env file if present, to get OPENAI_API_KEY and other configs
-
+# Try to use Ollama if configured
+try:
+    import ollama
+except Exception:
+    ollama = None
 
 def _fallback_response(prompt: str) -> str:
     # Very simple fallback: some heuristics + canned replies
@@ -37,15 +39,9 @@ def get_response(prompt: str, timeout: float = 10.0) -> str:
 
     Attempts to use Ollama if available; otherwise uses a fallback.
     """
-    # Try to use Ollama if configured
-    try:
-        import ollama
-    except Exception:
-        ollama = None
 
     if ollama:
         try:
-            print("Using Ollama for AI responses.")
             # Use Ollama's chat completion
             resp = ollama.chat(
                 model=os.environ.get("STAPLERY_OLLAMA_MODEL", "llama3"),
