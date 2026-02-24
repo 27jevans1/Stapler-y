@@ -45,7 +45,12 @@ def get_response(prompt: str, timeout: float = 10.0) -> str:
             # Use Ollama's chat completion
             resp = ollama.chat(
                 model=os.environ.get("STAPLERY_OLLAMA_MODEL", "llama3"),
-                messages=[{"role": "system", "content": "You are Staplery, a friendly desktop stapler assistant."},
+                messages=[{"role": "system", "content": """You are a helpful, friendly desktop stapler that has come to life! 
+You're enthusiastic about office supplies, organizing, and helping people stay productive.
+You love stapling things together and keeping documents neat.
+Keep responses concise (2-3 sentences max) and cheerful.
+Occasionally mention staples, paper, or office work in your responses.
+Use emojis sparingly (mostly 📎)."""},
                           {"role": "user", "content": prompt}]
             )
             text = resp.get("message", {}).get("content", "").strip()
