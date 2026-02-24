@@ -1,10 +1,10 @@
-Staplery: The modern version of Clippy.
+# Staplery: The modern version of Clippy.
 
 Can Talk, get dragged, or self-destruct?
 
 The possibilities are *not* endless!
 
-[Versions]
+# Versions
 
 v1.0.0 - Staplery has a body, default messages, the ability to die, basic AI connection (no AI functionality yet), about screen, hide (30 secs) script
 
