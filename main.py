@@ -17,6 +17,9 @@ class StapleryApp:
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
 
+        # AI Talking Toggle
+        self.aiTalking = False
+
         # Transparent background trick (Windows): pick a color and make it transparent
         self._bg = "#ff00ff"  # magenta - used as transparent color
         try:
@@ -63,9 +66,6 @@ class StapleryApp:
         self.menu.add_command(label="Exit", command=self._exit)
 
         # Pet state
-        self.angle = -20  # stapler arm angle (degrees) where 0 is closed
-        self.angle_dir = 1
-        self.arm_open = False
         self.last_bubble = 0
 
         # Speech bubble
@@ -108,13 +108,16 @@ class StapleryApp:
     def _on_double(self, event: tk.Event):
         pass
 
-    def _on_right_click(self, event):
+    def _on_right_click(self, event: tk.Event):
         try:
             self.menu.tk_popup(event.x_root, event.y_root)
         finally:
             self.menu.grab_release()
 
     def _ask_staplery(self):
+        # Toggle AI Talking
+        self.aiTalking = True
+
         # prompt the user for a question, call AI in background, then show bubble
         prompt = simpledialog.askstring("Ask Staplery", "Ask Staplery a question:")
         if prompt is None:
@@ -133,6 +136,8 @@ class StapleryApp:
                 self._show_bubble(resp, duration=8000)
 
             self.root.after(50, show)
+
+            self.aiTalking = False
 
         t = threading.Thread(target=worker, daemon=True)
         t.start()
@@ -218,17 +223,13 @@ class StapleryApp:
         if not self._running:
             return
 
-        # idle wiggle
-        self._idle_dx += 0.2
-        wiggle = math.sin(self._idle_dx) * 2
-        y = 200 + wiggle
-        # move window if not being dragged
-        # small random idle movement
-        if random.random() < 0.01:
-            # occasionally show a helpful message
-            if time.time() - self.last_bubble > 6:
-                self._show_bubble(random.choice(self.messages), 2500)
-                self.last_bubble = time.time()
+        # Don't Idle Talk when AI is Talking
+        if not self.aiTalking:
+            if random.random() < 0.01:
+                # occasionally show a helpful message
+                if time.time() - self.last_bubble > 6:
+                    self._show_bubble(random.choice(self.messages), 2500)
+                    self.last_bubble = time.time()
 
         self._draw_stapler()
         self.root.after(60, self._loop)

@@ -1,5 +1,0 @@
-[Current Version] v1.0.1
-
-[Versions]
-v1.0.0 - Staplery has a body, default messages, the ability to die, basic AI connection (no AI functionality yet), about screen, hide (30 secs) script
-v1.0.1 - Got rid of dotenv
