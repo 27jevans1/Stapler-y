@@ -1,5 +1,7 @@
 # Staplery: The modern version of Clippy.
 
-Can Talk, get dragged, self-destruct.
+He can walk, run, jump, sit, sleep, and *die*.
+
+You can also talk to him... I guess?
 
 The possibilities are *not* endless!

@@ -152,8 +152,6 @@ class DesktopPet:
                 if virt_width > self.primary_width or virt_height > self.primary_height:
                     self.screen_width = virt_width
                     self.screen_height = virt_height
-                    print(f"Multi-monitor detected: {virt_width}x{virt_height}")
-                    print(f"Primary monitor: {self.primary_width}x{self.primary_height}")
                     return
             except:
                 pass
@@ -171,8 +169,6 @@ class DesktopPet:
                     # Estimate total width (common setups: 2x monitors side-by-side)
                     self.screen_width = self.primary_width * 2
                     self.screen_height = self.primary_height
-                    print(f"Multi-monitor estimated: {self.screen_width}x{self.screen_height}")
-                    print(f"Primary monitor: {self.primary_width}x{self.primary_height}")
                     # Move back
                     self.root.geometry(f'+{self.x}+{self.y}')
                     return
@@ -185,7 +181,6 @@ class DesktopPet:
         # Fallback: use primary screen only
         self.screen_width = self.primary_width
         self.screen_height = self.primary_height
-        print(f"Using primary screen: {self.screen_width}x{self.screen_height}")
     
     def create_all_sprites(self):
         """Create all sprite animations"""
