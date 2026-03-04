@@ -4,6 +4,7 @@ import random
 import math
 import os
 import json
+import re
 from PIL import Image, ImageDraw, ImageTk, ImageOps
 try:
     from PIL import ImageGrab
@@ -1442,6 +1443,17 @@ class DesktopPet:
         
         # Add AI response to chat
         self.add_chat_message("Stapler", answer, "#4A90E2")
+
+        # Parse and handle any commands returned by the AI
+        try:
+            commands = self.parse_ai_commands(answer)
+            for cmd in commands:
+                result = self.handle_ai_command(cmd)
+                if result:
+                    # Report execution result in chat (system message)
+                    self.add_chat_message("System", result, "#888888")
+        except Exception as e:
+            print(f"Error handling AI commands: {e}")
         
         # Return to happy state
         self.state = "happy"
@@ -1626,6 +1638,139 @@ class DesktopPet:
         self.target_x = None
         self.velocity_x = 0
         self.energy = min(100, self.energy + 50)
+
+    # --- AI command parsing and handling ---
+    def parse_ai_commands(self, text: str) -> list:
+        """Parse AI response text for commands.
+
+        Supports:
+        - JSON object containing {"command": "name", "args": {...}}
+        - Lines starting with "COMMAND:" or "/cmd" or "/"
+        Returns a list of command dicts: {"command": str, "args": dict}
+        """
+        cmds = []
+        if not text:
+            return cmds
+
+        # Try to find a JSON object first
+        try:
+            m = re.search(r"\{.*\}", text, re.DOTALL)
+            if m:
+                try:
+                    obj = json.loads(m.group(0))
+                    if isinstance(obj, dict) and 'command' in obj:
+                        cmds.append({'command': obj['command'], 'args': obj.get('args', {})})
+                        return cmds
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Otherwise, parse line-based commands
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            # COMMAND: action arg1=val arg2=val
+            if line.upper().startswith('COMMAND:'):
+                parts = line[len('COMMAND:'):].strip().split()
+                if parts:
+                    name = parts[0]
+                    args = {}
+                    for p in parts[1:]:
+                        if '=' in p:
+                            k, v = p.split('=', 1)
+                            args[k] = v
+                    cmds.append({'command': name, 'args': args})
+            elif line.startswith('/cmd') or line.startswith('/'): 
+                parts = line.split()
+                if parts:
+                    name = parts[0].lstrip('/cmd').lstrip('/')
+                    args = {}
+                    for p in parts[1:]:
+                        if '=' in p:
+                            k, v = p.split('=', 1)
+                            args[k] = v
+                    cmds.append({'command': name, 'args': args})
+
+        return cmds
+
+    def handle_ai_command(self, cmd: dict) -> str:
+        """Execute a single AI command dict and return a short result string."""
+        name = cmd.get('command') or ''
+        args = cmd.get('args') or {}
+        name_l = name.lower()
+
+        try:
+            if name_l in ('walk', 'cmd_walk'):
+                self.cmd_walk()
+                return 'Started walking.'
+            if name_l in ('run', 'cmd_run'):
+                self.cmd_run()
+                return 'Started running.'
+            if name_l in ('jump', 'cmd_jump'):
+                self.cmd_jump()
+                return 'Jumped.'
+            if name_l in ('sit', 'cmd_sit'):
+                self.cmd_sit()
+                return 'Sitting.'
+            if name_l in ('eat', 'cmd_feed', 'feed'):
+                self.cmd_feed()
+                return 'Eating.'
+            if name_l in ('pet', 'cmd_pet'):
+                self.cmd_pet()
+                return 'Petted.'
+            if name_l in ('sleep', 'cmd_sleep'):
+                self.cmd_sleep()
+                return 'Sleeping.'
+            if name_l in ('respawn',):
+                self.respawn()
+                return 'Respawned.'
+            if name_l in ('quit', 'exit'):
+                self.quit_app()
+                return 'Quitting app.'
+            if name_l in ('set_state',):
+                state = args.get('state') or args.get('s') or ''
+                if state:
+                    self.state = state
+                    self.frame = 0
+                    return f'Set state to {state}.'
+            if name_l in ('move_to', 'move', 'goto'):
+                x = args.get('x')
+                y = args.get('y')
+                try:
+                    if x is not None:
+                        self.x = float(x)
+                    if y is not None:
+                        self.y = float(y)
+                    self.update_position()
+                    return f'Moved to {self.x},{self.y}.'
+                except Exception:
+                    return 'Failed to move: invalid coordinates.'
+            if name_l in ('clear_history', 'clear'):
+                self.clear_history()
+                return 'Cleared history.'
+            if name_l in ('view_screen', 'show_screen'):
+                self.show_screen_view()
+                return 'Opened screen viewer.'
+            if name_l in ('save_screenshot', 'screenshot'):
+                img = self.capture_screen()
+                if img:
+                    import datetime
+                    path = os.path.join('brain', f'screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    img.save(path)
+                    return f'Screenshot saved to {path}.'
+                return 'Screenshot failed.'
+            if name_l in ('say', 'speak', 'message'):
+                text = args.get('text') or args.get('t') or ''
+                if text:
+                    self.add_chat_message('Stapler', text, '#4A90E2')
+                    return 'Posted message.'
+
+            return f'Unknown command: {name}.'
+        except Exception as e:
+            return f'Error executing command {name}: {e}'
     
     def quit_app(self):
         """Quit application"""
