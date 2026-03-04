@@ -1,7 +1,9 @@
 import tkinter as tk
-from tkinter import Menu
+from tkinter import Menu, messagebox
 import random
 import math
+import os
+import json
 from PIL import Image, ImageDraw, ImageTk, ImageOps
 
 from ai import get_response
@@ -1067,6 +1069,46 @@ class DesktopPet:
         
         self.update_screen_bounds()
         self.root.after(30000, self.refresh_screen_bounds_periodically)  # Every 30 seconds
+
+    # --- History persistence helpers ---
+    def history_file_path(self):
+        base = os.path.dirname(__file__)
+        return os.path.join(base, "brain", "history.json")
+
+    def load_history(self):
+        try:
+            path = self.history_file_path()
+            if not os.path.exists(path):
+                return []
+            with open(path, 'r', encoding='utf-8') as f:
+                text = f.read().strip()
+                if not text:
+                    return []
+                return json.loads(text)
+        except Exception as e:
+            print(f"Failed to load history: {e}")
+            return []
+
+    def save_history(self):
+        try:
+            path = self.history_file_path()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(getattr(self, '_history', []), f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Failed to save history: {e}")
+
+    def append_history(self, sender, message):
+        from datetime import datetime
+        entry = {
+            'sender': sender,
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        }
+        if not hasattr(self, '_history') or self._history is None:
+            self._history = self.load_history()
+        self._history.append(entry)
+        self.save_history()
     
     def show_chat_dialog(self):
         """Show chat dialog for asking questions"""
@@ -1096,6 +1138,15 @@ class DesktopPet:
         )
         self.chat_history.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
+        # Load persisted history and populate chat (do not re-save while populating)
+        self._history = self.load_history()
+        for entry in self._history:
+            sender = entry.get('sender', 'You')
+            message = entry.get('message', '')
+            ts = entry.get('timestamp')
+            color = '#2E7D32' if sender == 'You' else '#4A90E2'
+            self.add_chat_message(sender, message, color=color, timestamp=ts, save=False)
+
         # Scrollbar
         scrollbar = tk.Scrollbar(history_frame, command=self.chat_history.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -1128,35 +1179,89 @@ class DesktopPet:
             cursor='hand2'
         )
         send_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Clear history button
+        clear_btn = tk.Button(
+            input_frame,
+            text="Clear",
+            command=self.clear_history_prompt,
+            bg='#E53935',
+            fg='white',
+            font=('Arial', 10),
+            relief=tk.FLAT,
+            padx=10,
+            cursor='hand2'
+        )
+        clear_btn.pack(side=tk.RIGHT, padx=(5, 0))
         
         # Focus on entry
         self.question_entry.focus()
     
-    def add_chat_message(self, sender, message, color="#000000"):
-        """Add a message to chat history"""
+    def add_chat_message(self, sender, message, color="#000000", timestamp=None, save=True):
+        """Add a message to chat history and optionally persist it.
+
+        Args:
+            sender: display name (e.g., 'You' or 'Stapler')
+            message: message text
+            color: text color for sender tag
+            timestamp: optional ISO timestamp string to display
+            save: if True, append to persisted history file
+        """
         if not hasattr(self, 'chat_history'):
             return
-        
-        self.chat_history.config(state=tk.NORMAL)
-        
-        # Add timestamp
+
         from datetime import datetime
-        timestamp = datetime.now().strftime("%H:%M")
-        
+        if timestamp:
+            # Try to format known ISO timestamps to HH:MM
+            try:
+                ts_dt = datetime.fromisoformat(timestamp)
+                timestamp_display = ts_dt.strftime("%H:%M")
+            except Exception:
+                timestamp_display = str(timestamp)
+        else:
+            timestamp_display = datetime.now().strftime("%H:%M")
+
+        self.chat_history.config(state=tk.NORMAL)
+
         # Sender name
         self.chat_history.insert(tk.END, f"\n{sender} ", f"sender_{sender}")
         self.chat_history.tag_config(f"sender_{sender}", foreground=color, font=('Arial', 10, 'bold'))
-        
+
         # Timestamp
-        self.chat_history.insert(tk.END, f"({timestamp})\n", "timestamp")
+        self.chat_history.insert(tk.END, f"({timestamp_display})\n", "timestamp")
         self.chat_history.tag_config("timestamp", foreground="#888888", font=('Arial', 8))
-        
+
         # Message
         self.chat_history.insert(tk.END, f"{message}\n", "message")
         self.chat_history.tag_config("message", font=('Arial', 10))
-        
+
         self.chat_history.config(state=tk.DISABLED)
         self.chat_history.see(tk.END)
+
+        if save:
+            self.append_history(sender, message)
+
+    def clear_history_prompt(self):
+        """Ask the user to confirm clearing history."""
+        if messagebox.askyesno("Clear History", "Are you sure you want to clear the chat history? This cannot be undone."):
+            self.clear_history()
+
+    def clear_history(self):
+        """Clear in-memory and on-disk history and clear the chat display."""
+        try:
+            self._history = []
+            self.save_history()
+        except Exception as e:
+            print(f"Failed to clear history: {e}")
+
+        # Clear chat view if present
+        if hasattr(self, 'chat_history'):
+            try:
+                self.chat_history.config(state=tk.NORMAL)
+                self.chat_history.delete('1.0', tk.END)
+                self.chat_history.config(state=tk.DISABLED)
+            except Exception:
+                pass
     
     def ask_question(self):
         """Send question to AI"""
