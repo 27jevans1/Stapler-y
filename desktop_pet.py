@@ -5,6 +5,15 @@ import math
 import os
 import json
 from PIL import Image, ImageDraw, ImageTk, ImageOps
+try:
+    from PIL import ImageGrab
+except Exception:
+    ImageGrab = None
+import io
+try:
+    import mss
+except Exception:
+    mss = None
 
 from ai import get_response
 
@@ -1302,6 +1311,101 @@ class DesktopPet:
                 self.chat_history.config(state=tk.DISABLED)
             except Exception:
                 pass
+
+    # --- Screen viewing helpers ---
+    def capture_screen(self):
+        """Capture the virtual screen as a PIL Image. Returns None on failure."""
+        try:
+            left = getattr(self, 'screen_left', None)
+            top = getattr(self, 'screen_top', None)
+            w = getattr(self, 'screen_width', None)
+            h = getattr(self, 'screen_height', None)
+
+            # Prefer mss if available (robust multi-monitor capture)
+            if mss:
+                with mss.mss() as sct:
+                    if None not in (left, top, w, h):
+                        monitor = {
+                            'left': int(left), 'top': int(top),
+                            'width': int(w), 'height': int(h)
+                        }
+                    else:
+                        # monitor 0 is the virtual screen in mss
+                        monitor = sct.monitors[0]
+                    sct_img = sct.grab(monitor)
+                    # Create PIL Image from raw data
+                    img = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
+                    return img
+
+            # Fallback to PIL ImageGrab if mss not available
+            if ImageGrab:
+                if None not in (left, top, w, h):
+                    bbox = (int(left), int(top), int(left + w), int(top + h))
+                    return ImageGrab.grab(bbox=bbox)
+                else:
+                    return ImageGrab.grab()
+            return None
+        except Exception as e:
+            print(f"Failed to capture screen: {e}")
+            return None
+
+    def show_screen_view(self):
+        """Open a simple window that shows the current screen capture."""
+        img = self.capture_screen()
+        if img is None:
+            messagebox.showinfo("View Screen", "Screen capture not available on this system.")
+            return
+
+        # Create or reuse viewer window
+        try:
+            viewer = getattr(self, 'screen_viewer', None)
+            if viewer and viewer.winfo_exists():
+                viewer.lift()
+                # update image
+            else:
+                viewer = tk.Toplevel(self.root)
+                viewer.title("Screen View")
+                self.screen_viewer = viewer
+
+            # Resize image to fit window if necessary
+            max_w, max_h = 800, 600
+            img_w, img_h = img.size
+            scale = min(1.0, max_w / img_w, max_h / img_h)
+            if scale < 1.0:
+                new_size = (int(img_w * scale), int(img_h * scale))
+                # Use modern resampling attribute when available
+                try:
+                    resample = Image.Resampling.LANCZOS
+                except Exception:
+                    resample = getattr(Image, 'LANCZOS', Image.BICUBIC)
+                img_disp = img.resize(new_size, resample)
+            else:
+                img_disp = img
+
+            photo = ImageTk.PhotoImage(img_disp)
+            # Keep reference to avoid GC
+            self._screen_view_image = photo
+
+            # Put image in label
+            if hasattr(self, '_screen_view_label') and self._screen_view_label.winfo_exists():
+                self._screen_view_label.config(image=photo)
+            else:
+                lbl = tk.Label(viewer, image=photo)
+                lbl.pack(fill=tk.BOTH, expand=True)
+                self._screen_view_label = lbl
+
+            # Buttons frame
+            btn_frame = getattr(self, '_screen_view_btns', None)
+            if not btn_frame or not btn_frame.winfo_exists():
+                btn_frame = tk.Frame(viewer)
+                btn_frame.pack(fill=tk.X)
+                refresh = tk.Button(btn_frame, text="Refresh", command=self.show_screen_view)
+                refresh.pack(side=tk.LEFT, padx=4, pady=4)
+                close = tk.Button(btn_frame, text="Close", command=viewer.destroy)
+                close.pack(side=tk.RIGHT, padx=4, pady=4)
+                self._screen_view_btns = btn_frame
+        except Exception as e:
+            print(f"Failed to open screen viewer: {e}")
     
     def ask_question(self):
         """Send question to AI"""
@@ -1327,7 +1431,13 @@ class DesktopPet:
         self.root.after(100, lambda: self.get_ai_response(question))
     
     def get_ai_response(self, question):
-        answer = get_response(question)
+        # Capture current screen and pass to AI so it can "see" the screen
+        try:
+            screen_img = self.capture_screen()
+        except Exception:
+            screen_img = None
+
+        answer = get_response(question, screen_image=screen_img)
         self.last_response = answer
         
         # Add AI response to chat
@@ -1440,6 +1550,7 @@ class DesktopPet:
             menu.add_separator()
             menu.add_command(label=f"🖥️  Screen: {self.screen_width}x{self.screen_height}", state="disabled")
             menu.add_command(label="🔄 Refresh Monitors", command=self.update_screen_bounds)
+            menu.add_command(label="👀 View Screen", command=self.show_screen_view)
             menu.add_separator()
             menu.add_command(label="💡 Throw EXTREMELY hard to explode!", state="disabled")
             menu.add_separator()
