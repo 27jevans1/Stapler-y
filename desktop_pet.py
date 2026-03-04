@@ -137,6 +137,31 @@ class DesktopPet:
         # Get primary screen dimensions - always store these
         self.primary_width = self.root.winfo_screenwidth()
         self.primary_height = self.root.winfo_screenheight()
+
+        # Try platform-specific virtual screen bounds (Windows)
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            SM_XVIRTUALSCREEN = 76
+            SM_YVIRTUALSCREEN = 77
+            SM_CXVIRTUALSCREEN = 78
+            SM_CYVIRTUALSCREEN = 79
+
+            left = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+            top = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+            width = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+            height = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+
+            # If values look sensible, use them
+            if width > 0 and height > 0:
+                self.screen_left = left
+                self.screen_top = top
+                self.screen_width = width
+                self.screen_height = height
+                return
+        except Exception:
+            # Not Windows or call failed; fall back to other heuristics below
+            pass
         
         # Try to get virtual screen dimensions (multi-monitor)
         try:
@@ -158,7 +183,7 @@ class DesktopPet:
             except:
                 pass
             
-            # Method 2: For Windows, estimate based on positioning
+            # Method 2: For Windows/Linux, estimate based on positioning
             # Try to move window to extreme position and see if it works
             test_x = self.primary_width + 100
             try:
@@ -169,6 +194,9 @@ class DesktopPet:
                 # If window moved beyond primary screen, multi-monitor exists
                 if actual_x > self.primary_width:
                     # Estimate total width (common setups: 2x monitors side-by-side)
+                    # Estimate virtual width as two primaries (best-effort)
+                    self.screen_left = 0
+                    self.screen_top = 0
                     self.screen_width = self.primary_width * 2
                     self.screen_height = self.primary_height
                     # Move back
@@ -181,6 +209,8 @@ class DesktopPet:
             print(f"Multi-monitor detection failed: {e}")
         
         # Fallback: use primary screen only
+        self.screen_left = 0
+        self.screen_top = 0
         self.screen_width = self.primary_width
         self.screen_height = self.primary_height
     
@@ -863,6 +893,8 @@ class DesktopPet:
             return
         
         # Use stored screen bounds (supports multi-monitor)
+        screen_left = getattr(self, 'screen_left', 0)
+        screen_top = getattr(self, 'screen_top', 0)
         screen_w = self.screen_width
         screen_h = self.screen_height
         
@@ -894,8 +926,8 @@ class DesktopPet:
         impact_speed = math.sqrt(self.velocity_x**2 + self.velocity_y**2)
         death_threshold = 50.0  # Speed threshold for death - very high, requires extreme throws
         
-        # Ground collision
-        ground_y = screen_h - self.pet_size - 40
+        # Ground collision (respect virtual screen top)
+        ground_y = screen_top + screen_h - self.pet_size - 40
         if self.y >= ground_y:
             if impact_speed > death_threshold:
                 self.trigger_death()
@@ -912,23 +944,25 @@ class DesktopPet:
                 self.state = "fall"
         
         # Wall collision with death check (multi-monitor aware)
-        if self.x < 0:
+        left_bound = screen_left
+        right_bound = screen_left + screen_w - self.pet_size
+        if self.x < left_bound:
             if abs(self.velocity_x) > death_threshold:
                 self.trigger_death()
             else:
-                self.x = 0
+                self.x = left_bound
                 self.velocity_x = abs(self.velocity_x) * 0.5
                 self.direction = 1
-        elif self.x > screen_w - self.pet_size:
+        elif self.x > right_bound:
             if abs(self.velocity_x) > death_threshold:
                 self.trigger_death()
             else:
-                self.x = screen_w - self.pet_size
+                self.x = right_bound
                 self.velocity_x = -abs(self.velocity_x) * 0.5
                 self.direction = -1
         
-        # Ceiling collision with death check
-        if self.y < 0:
+        # Ceiling collision with death check (respect virtual screen top)
+        if self.y < screen_top:
             if abs(self.velocity_y) > death_threshold:
                 self.trigger_death()
             else:
@@ -968,7 +1002,13 @@ class DesktopPet:
                 if action in ["walk", "run"]:
                     self.state = action
                     # Use stored screen bounds (multi-monitor aware)
-                    self.target_x = random.randint(50, max(100, self.screen_width - self.pet_size - 50))
+                    left = getattr(self, 'screen_left', 0)
+                    low = left + 50
+                    high = left + max(100, self.screen_width - self.pet_size - 50)
+                    if low >= high:
+                        low = left
+                        high = left + max(100, self.screen_width - self.pet_size)
+                    self.target_x = random.randint(int(low), int(high))
                     self.frame = 0
                 elif action == "jump":
                     if self.on_ground:
@@ -1414,13 +1454,25 @@ class DesktopPet:
         """Menu: Walk"""
         self.state = "walk"
         self.frame = 0
-        self.target_x = random.randint(50, self.screen_width - self.pet_size - 50)
+        left = getattr(self, 'screen_left', 0)
+        low = left + 50
+        high = left + max(100, self.screen_width - self.pet_size - 50)
+        if low >= high:
+            low = left
+            high = left + max(100, self.screen_width - self.pet_size)
+        self.target_x = random.randint(int(low), int(high))
     
     def cmd_run(self):
         """Menu: Run"""
         self.state = "run"
         self.frame = 0
-        self.target_x = random.randint(50, self.screen_width - self.pet_size - 50)
+        left = getattr(self, 'screen_left', 0)
+        low = left + 50
+        high = left + max(100, self.screen_width - self.pet_size - 50)
+        if low >= high:
+            low = left
+            high = left + max(100, self.screen_width - self.pet_size)
+        self.target_x = random.randint(int(low), int(high))
     
     def cmd_jump(self):
         """Menu: Jump"""
