@@ -1416,18 +1416,40 @@ class DesktopPet:
         question = self.question_entry.get().strip()
         if not question:
             return
-        
+
         # Clear input
         self.question_entry.delete(0, tk.END)
-        
-        # Add user message
+
+        # Add user message to chat
         self.add_chat_message("You", question, "#2E7D32")
-        
+
+        # If the user entered a direct command (JSON or prefixed), execute locally
+        raw = question.strip()
+        is_direct_cmd = False
+        if raw.startswith('{') and 'command' in raw:
+            is_direct_cmd = True
+        if raw.upper().startswith('COMMAND:') or raw.startswith('/') or raw.startswith('/cmd'):
+            is_direct_cmd = True
+
+        if is_direct_cmd:
+            try:
+                cmds = self.parse_ai_commands(question)
+                if not cmds:
+                    self.add_chat_message('System', 'No valid command found in input.', '#888888')
+                    return
+                for cmd in cmds:
+                    result = self.handle_ai_command(cmd)
+                    self.add_chat_message('System', result, '#888888')
+            except Exception as e:
+                self.add_chat_message('System', f'Error running command: {e}', '#888888')
+            return
+
+        # Otherwise, send to AI
         # Start thinking animation
         self.state = "thinking"
         self.is_thinking = True
         self.frame = 0
-        
+
         # Call AI in background
         self.root.after(100, lambda: self.get_ai_response(question))
     
@@ -1682,10 +1704,16 @@ class DesktopPet:
                             k, v = p.split('=', 1)
                             args[k] = v
                     cmds.append({'command': name, 'args': args})
-            elif line.startswith('/cmd') or line.startswith('/'): 
+            elif line.startswith('/cmd') or line.startswith('/'):
                 parts = line.split()
                 if parts:
-                    name = parts[0].lstrip('/cmd').lstrip('/')
+                    token = parts[0]
+                    if token.startswith('/cmd'):
+                        name = token[len('/cmd'):]
+                    elif token.startswith('/'):
+                        name = token[1:]
+                    else:
+                        name = token
                     args = {}
                     for p in parts[1:]:
                         if '=' in p:

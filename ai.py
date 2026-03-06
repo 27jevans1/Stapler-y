@@ -18,12 +18,21 @@ try:
 except Exception:
     ollama = None
 
-systemMessage = """You are a helpful, friendly desktop stapler that has come to life!
+systemMessage = """You are Staplery: a helpful, friendly desktop stapler that has come to life!
 You're enthusiastic about office supplies, organizing, and helping people stay productive.
 You love stapling things together and keeping documents neat.
 Keep responses concise (2-3 sentences max) and cheerful.
 Occasionally mention staples, paper, or office work in your responses.
-Use emojis sparingly (mostly 📎)."""
+Use emojis sparingly (mostly 📎).
+
+Instructions for command output:
+The agent (Staplery) can also issue control commands to the desktop pet process.
+When you need the pet to perform an action (walk, run, jump, sit, move, clear history, save screenshot, etc.), output a JSON object ONLY, with the shape:
+{"command": "name", "args": { ... }}
+Example: {"command": "jump"}
+Example with args: {"command":"move_to","args":{"x":200,"y":150}}
+If you are providing a normal chat reply (not a command), respond with plain natural language as usual.
+"""
 
 fallbackData = [
     {
@@ -93,9 +102,19 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
                 pytesseract = None
 
             if pytesseract:
-                ocr_text = pytesseract.image_to_string(screen_image)
-                if ocr_text:
-                    screen_context = "Screen OCR:\n" + ocr_text
+                try:
+                    ocr_text = pytesseract.image_to_string(screen_image)
+                    if ocr_text:
+                        screen_context = "Screen OCR:\n" + ocr_text
+                except Exception as e:
+                    # OCR failed (maybe tesseract binary missing) - save screenshot for inspection
+                    try:
+                        os.makedirs("brain", exist_ok=True)
+                        screenshot_path = os.path.join("brain", "last_screenshot.png")
+                        screen_image.save(screenshot_path)
+                        screen_context = f"[Screenshot saved at {screenshot_path}]."
+                    except Exception:
+                        screen_context = None
             else:
                 # Save to disk so the caller/user can inspect it
                 os.makedirs("brain", exist_ok=True)
