@@ -153,15 +153,3 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
         # simulate a small thinking delay
         time.sleep(min(0.6, timeout))
         return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
-
-if __name__ == "__main__":
-    # Simple test chat
-    print("Staplery (Command-Line Version)")
-    print("Type 'exit' or 'quit' to end the chat.", end="\n\n")
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() in ("exit", "quit"):
-            print("Goodbye!")
-            break
-        response = get_response(user_input)
-        print("Staplery:", response)

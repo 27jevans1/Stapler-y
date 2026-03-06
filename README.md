@@ -90,8 +90,6 @@ Contributing
 License
 - MIT-style (no license file included).
 
-Enjoy your stapler!
-
 Examples
 --------
 

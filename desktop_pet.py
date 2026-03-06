@@ -242,9 +242,9 @@ class DesktopPet:
         }
         return sprites
     
-    def draw_base_stapler(self, draw, center, base_y, top_angle=0, scale=1.0, expression="normal"):
-        """Draw a stapler with given parameters"""
-        # Bottom/base of stapler (the part that holds staples)
+    def draw_base_staplery(self, draw, center, base_y, top_angle=0, scale=1.0, expression="normal"):
+        """Draw the Staplery with given parameters"""
+        # Bottom/base of the Staplery (the part that holds staples)
         base_w = int(50 * scale)
         base_h = int(15 * scale)
         
@@ -260,7 +260,7 @@ class DesktopPet:
             center + base_w - 5, base_y + 33
         ], fill='#505050', outline='#303030', width=1)
         
-        # Top part of stapler (the part you press down)
+        # Top part of the Staplery (the part you press down)
         # This rotates based on top_angle
         top_w = int(45 * scale)
         top_h = int(12 * scale)
@@ -330,7 +330,7 @@ class DesktopPet:
         draw.line([center + base_w - 5, base_y + 20, center + base_w - 5, base_y + 10 - top_offset_y], 
                  fill='#707070', width=2)
         
-        # Front nose/stapler opening
+        # Front nose/Staplery opening
         draw.rectangle([
             center - base_w - 3, base_y + 22,
             center - base_w, base_y + 33
@@ -349,7 +349,7 @@ class DesktopPet:
             top_angle = int(math.sin(i / 4 * math.pi * 2) * 2)  # Slight opening/closing
             
             base_y = 60
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "normal")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
             
             # Shadow
             draw.ellipse([center - 45, base_y + 36, center + 45, base_y + 42], 
@@ -370,7 +370,7 @@ class DesktopPet:
             top_angle = int(math.sin(i / 3 * math.pi) * 3)
             
             base_y = 60 - bounce
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "normal")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
             
             # Little "feet" or legs (small rectangles)
             leg_offset = 5 if i % 2 == 0 else -5
@@ -399,7 +399,7 @@ class DesktopPet:
             tilt = 3 if i % 2 == 0 else -3
             
             base_y = 55 - bounce
-            self.draw_base_stapler(draw, center + tilt, base_y, top_angle, 1.0, "excited")
+            self.draw_base_staplery(draw, center + tilt, base_y, top_angle, 1.0, "excited")
             
             # Fast moving legs
             leg_offset = 8 if i % 2 == 0 else -8
@@ -429,7 +429,7 @@ class DesktopPet:
             
             center = self.pet_size // 2
             
-            # Stapler lying down (rotated 90 degrees)
+            # Staplery lying down (rotated 90 degrees)
             # Draw as horizontal rectangle
             draw.rectangle([30, 70, 95, 85], fill='#A0A0A0', outline='#606060', width=2)
             draw.rectangle([35, 72, 90, 83], fill='#C0C0C0', outline='#808080', width=1)
@@ -471,7 +471,7 @@ class DesktopPet:
             top_angle = 10 if jump_y < -10 else 3
             expression = "excited" if jump_y < -10 else "normal"
             
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, expression)
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, expression)
             
             # Legs extended when jumping
             if i <= 1:  # Crouch
@@ -506,7 +506,7 @@ class DesktopPet:
             # Wide open when falling
             top_angle = 15 if i == 0 else 12
             
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "normal")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
             
             # Legs dangling
             wobble = 3 if i == 0 else -3
@@ -531,7 +531,7 @@ class DesktopPet:
             # Rapid opening/closing like stapling
             top_angle = 15 if i % 2 == 0 else 0
             
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "happy")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "happy")
             
             # Legs
             draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], 
@@ -574,7 +574,7 @@ class DesktopPet:
             # Opening to eat
             top_angle = 10 if i % 2 == 0 else 5
             
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "happy" if i % 2 == 0 else "normal")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "happy" if i % 2 == 0 else "normal")
             
             # Legs
             draw.rectangle([center - 35, base_y + 30, center - 30, base_y + 40], 
@@ -614,7 +614,7 @@ class DesktopPet:
             # Slightly more open when sitting
             top_angle = 3 + i
             
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "normal")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
             
             # Legs tucked in
             draw.rectangle([center - 35, base_y + 30, center - 30, base_y + 38], 
@@ -642,7 +642,7 @@ class DesktopPet:
             # Slightly tilted when thinking
             top_angle = 5
             
-            self.draw_base_stapler(draw, center, base_y, top_angle, 1.0, "normal")
+            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
             
             # Legs
             draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], 
@@ -740,25 +740,25 @@ class DesktopPet:
             center = self.pet_size // 2
             float_offset = int(math.sin(i / 4 * math.pi * 2) * 3)
             
-            # Ghost stapler floating
+            # Ghost Staplery floating
             base_y = 50 + float_offset
             
-            # Semi-transparent ghost stapler body (bottom)
+            # Semi-transparent ghost Staplery body (bottom)
             draw.rectangle([center - 45, base_y + 20, center + 45, base_y + 35], 
                           fill='#E0E0FF88', outline='#B0B0FF', width=2)
             
-            # Semi-transparent ghost stapler top (slightly open)
+            # Semi-transparent ghost Staplery top (slightly open)
             draw.rectangle([center - 40, base_y + 5, center + 40, base_y + 17], 
                           fill='#F0F0FF88', outline='#C0C0FF', width=2)
             
-            # X_X eyes on ghost stapler
+            # X_X eyes on ghost Staplery
             eye_y = base_y + 10
             draw.line([center - 15, eye_y - 2, center - 11, eye_y + 2], fill='#6495ED', width=2)
             draw.line([center - 15, eye_y + 2, center - 11, eye_y - 2], fill='#6495ED', width=2)
             draw.line([center + 11, eye_y - 2, center + 15, eye_y + 2], fill='#6495ED', width=2)
             draw.line([center + 11, eye_y + 2, center + 15, eye_y - 2], fill='#6495ED', width=2)
             
-            # Halo above ghost stapler
+            # Halo above ghost Staplery
             halo_y = base_y - 10
             draw.ellipse([center - 25, halo_y, center + 25, halo_y + 8], 
                         outline='#FFD700', width=3)
@@ -1168,7 +1168,7 @@ class DesktopPet:
         
         # Create chat window
         self.chat_window = tk.Toplevel(self.root)
-        self.chat_window.title("Chat with Stapler 📎")
+        self.chat_window.title("Chat with Staplery 📎")
         self.chat_window.geometry("400x500")
         self.chat_window.configure(bg='#F0F0F0')
         
@@ -1251,7 +1251,7 @@ class DesktopPet:
         """Add a message to chat history and optionally persist it.
 
         Args:
-            sender: display name (e.g., 'You' or 'Stapler')
+            sender: display name (e.g., 'You' or 'Staplery')
             message: message text
             color: text color for sender tag
             timestamp: optional ISO timestamp string to display
@@ -1464,7 +1464,7 @@ class DesktopPet:
         self.last_response = answer
         
         # Add AI response to chat
-        self.add_chat_message("Stapler", answer, "#4A90E2")
+        self.add_chat_message("Staplery", answer, "#4A90E2")
 
         # Parse and handle any commands returned by the AI
         try:
@@ -1793,7 +1793,7 @@ class DesktopPet:
             if name_l in ('say', 'speak', 'message'):
                 text = args.get('text') or args.get('t') or ''
                 if text:
-                    self.add_chat_message('Stapler', text, '#4A90E2')
+                    self.add_chat_message('Staplery', text, '#4A90E2')
                     return 'Posted message.'
 
             return f'Unknown command: {name}.'
