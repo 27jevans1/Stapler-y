@@ -1,6 +1,6 @@
 # Staplery: The modern version of Clippy
 
-Staplery is a small desktop "pet" (a stapler) that strolls around your screen, responds to simple commands, and exposes a chat interface backed by a local AI wrapper.
+Staplery is a small desktop pet that walks around your screen, responds to simple commands, and uses a chat interface backed by a local AI.
 
 Features
 - Interactive desktop pet with animations (walk, run, jump, sit, sleep, explode/respawn).
@@ -139,20 +139,3 @@ Testing AI command flow
 1. Run the app: `python main.py`.
 2. Open the chat (`Right-click → Chat with Me!`).
 3. Paste a JSON command like `{"command":"jump"}` into the chat input and send it. The pet should perform the action and you should see a `System` message confirming execution.
-
-Extending and safety
---------------------
-
-- To add or restrict commands, modify `desktop_pet.handle_ai_command()`; consider adding a whitelist or confirmation prompt for actions like `quit`.
-- If you plan to use a multimodal AI model that accepts images directly, update `ai.get_response()` to send image bytes to your model/API and handle model-specific payloads.
-
-Contact / Next steps
---------------------
-
-If you'd like, I can:
-
-- Add a small test harness that simulates AI responses and verifies command parsing.
-- Add a `sample_responses/` folder with canned AI outputs you can paste into chat during development.
-- Add a developer script `run_dev.py` that spins up the app and runs a few automated interactions.
-
-Pick one and I'll add it.
