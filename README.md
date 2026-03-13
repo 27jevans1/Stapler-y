@@ -1,6 +1,6 @@
 # Staplery: The modern version of Clippy
 
-Staplery is a small desktop pet that walks around your screen, responds to simple commands, and uses a chat interface backed by a local AI.
+Stapler-y is a small desktop pet that walks around your screen, responds to simple commands, and uses a chat interface backed by a local AI.
 
 Features
 - Interactive desktop pet with animations (walk, run, jump, sit, sleep, explode/respawn).

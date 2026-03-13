@@ -1,4 +1,4 @@
-"""Command-line mode for Staplery.
+"""Command-line mode for Stapler-y.
 
 Provides a small REPL that uses `ai.get_response` and supports the same
 command formats as the desktop pet (JSON, COMMAND:, /slash).
@@ -110,7 +110,7 @@ def handle_command(cmd: dict) -> str:
         if name in ('say', 'speak'):
             text = args.get('text') or args.get('t') or ''
             if text:
-                append_history('Staplery', text)
+                append_history('Stapler-y', text)
                 return 'Posted message.'
         if name in ('quit', 'exit'):
             return 'quit'
@@ -120,7 +120,7 @@ def handle_command(cmd: dict) -> str:
 
 
 def run_cli():
-    print('Staplery CLI — type your message. Use /quit to exit.')
+    print('Stapler-y CLI — type your message. Use /quit to exit.')
     hist = load_history()
     while True:
         try:
@@ -154,8 +154,8 @@ def run_cli():
 
         # Otherwise send to AI
         resp = get_response(s)
-        print('Staplery:', resp)
-        append_history('Staplery', resp)
+        print('Stapler-y:', resp)
+        append_history('Stapler-y', resp)
 
 
 if __name__ == '__main__':

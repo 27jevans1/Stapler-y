@@ -1,4 +1,4 @@
-"""Simple AI wrapper for Staplery.
+"""Simple AI wrapper for Stapler-y.
 
 Behavior:
 - If `ollama` package is installed,
@@ -18,7 +18,7 @@ try:
 except Exception:
     ollama = None
 
-systemMessage = """You are Staplery: a helpful, friendly desktop stapler that has come to life!
+systemMessage = """You are Stapler-y: a helpful, friendly desktop stapler that has come to life!
 You're enthusiastic about office supplies, organizing, and helping people stay productive.
 You love stapling things together and keeping documents neat.
 Keep responses concise (2-3 sentences max) and cheerful.
@@ -26,7 +26,7 @@ Occasionally mention staples, paper, or office work in your responses.
 Use emojis sparingly (mostly 📎).
 
 Instructions for command output:
-The agent (Staplery) can also issue control commands to the desktop pet process.
+The agent (Stapler-y) can also issue control commands to the desktop pet process.
 When you need the pet to perform an action (walk, run, jump, sit, move, clear history, save screenshot, etc.), output a JSON object ONLY, with the shape:
 {"command": "name", "args": { ... }}
 Example: {"command": "jump"}
@@ -52,9 +52,9 @@ fallbackData = [
             "what are you",
             "you"
         ],
-        "responses": [
-            "Hello, I'm Staplery, your personal AI Assistant!",
-            "Hi! I'm Staplery."
+                "responses": [
+            "Hello, I'm Stapler-y, your personal AI Assistant!",
+            "Hi! I'm Stapler-y."
         ]
     },
     {
