@@ -21,8 +21,6 @@ python -m venv .venv
 
 ```powershell
 pip install -r requirements.txt
-# Optional (better capture/ocr):
-pip install mss pytesseract
 ```
 
 3. (Optional) Install Tesseract OCR for Windows if you want OCR in chat:
@@ -84,12 +82,6 @@ Files of interest
 - `brain/history.json` — persisted chat history
 - `brain/fallback.json` — canned fallback responses
 
-Contributing
-- Make changes, run locally, and open a PR. Keep changes small and focused.
-
-License
-- MIT-style (no license file included).
-
 Examples
 --------
 
@@ -129,7 +121,6 @@ Troubleshooting
 
 - App fails to start or throws import errors:
 	- Run `pip install -r requirements.txt` to install listed dependencies.
-	- For optional features (screen/OCR) also install `mss` and `pytesseract` as needed.
 
 Testing AI command flow
 -----------------------
