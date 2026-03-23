@@ -9,5 +9,3 @@ if __name__ == "__main__":
         print(f"Error starting desktop pet: {e}")
         import traceback
         traceback.print_exc()
-
-# Testing
