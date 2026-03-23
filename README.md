@@ -1,3 +1,5 @@
+![mcol logo](stapleryIcon.png)
+
 # Stapler-y: The modern version of Clippy
 
 Stapler-y is a small desktop pet that walks around your screen, responds to simple commands, and uses a chat interface backed by a local AI.
