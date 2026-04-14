@@ -1,0 +1,1 @@
+pyinstaller --noconfirm --onedir --windowed --name "Stapler-y" main.py
