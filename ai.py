@@ -9,8 +9,6 @@ This module exposes a single function `get_response(prompt)` which returns a str
 """
 import os
 import random
-import time
-import json
 
 # Try to use Ollama if configured
 try:
@@ -50,9 +48,9 @@ fallbackData = [
         "prompts": [
             "who are you",
             "what are you",
-            "you"
+            "your name"
         ],
-                "responses": [
+        "responses": [
             "Hello, I'm Stapler-y, your personal AI Assistant!",
             "Hi! I'm Stapler-y."
         ]
@@ -140,16 +138,20 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
                 messages=[{"role": "system", "content": systemMessage},
                           {"role": "user", "content": user_content}]
             )
-            text = resp.get("message", {}).get("content", "").strip()
+            text = resp.message.content.strip()
+            
             if text:
                 return text
-        except Exception:
-            # fallback path
-            # simulate a small thinking delay
-            time.sleep(min(0.6, timeout))
+            else:
+                print("Ollama response was empty, falling back.")
+                return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
+        except Exception as e:
+            print("Error calling Ollama:", e)
             return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
     else:
-        # fallback path
-        # simulate a small thinking delay
-        time.sleep(min(0.6, timeout))
+        print("Ollama not available, using fallback response.")
         return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
+
+if __name__ == "__main__":
+    # Simple test
+    print(get_response("Hello, who are you?"))

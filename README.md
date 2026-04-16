@@ -80,9 +80,8 @@ Development notes
 
 Files of interest
 - `desktop_pet.py` — main UI & logic
-- `ai.py` — AI wrapper and integration
+- `ai.py` — AI wrapper and integration (fallback responses are hardcoded in this file)
 - `brain/history.json` — persisted chat history
-- `brain/fallback.json` — canned fallback responses
 
 Examples
 --------

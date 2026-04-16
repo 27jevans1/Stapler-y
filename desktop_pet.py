@@ -5,6 +5,8 @@ import math
 import os
 import json
 import re
+import threading
+import time
 from PIL import Image, ImageDraw, ImageTk, ImageOps
 try:
     from PIL import ImageGrab
@@ -79,7 +81,15 @@ class DesktopPet:
         self.convert_sprites()
         
         # Interaction
-        self.drag_data = {"x": 0, "y": 0, "dragging": False, "start_x": 0, "start_y": 0}
+        self.drag_data = {
+            "offset_x": 0, "offset_y": 0,   # canvas-relative click position
+            "dragging": False,
+            "start_x": 0, "start_y": 0,
+            # Recent positions used to compute throw velocity on release
+            "prev_x": 0.0, "prev_y": 0.0,
+            "prev_time": 0.0,
+            "vel_x": 0.0, "vel_y": 0.0,
+        }
         self.click_count = 0
         self.last_click_time = 0
         
@@ -1155,6 +1165,7 @@ class DesktopPet:
             'message': message,
             'timestamp': datetime.now().isoformat()
         }
+        # Use the in-memory list directly; avoid re-reading from disk on every message.
         if not hasattr(self, '_history') or self._history is None:
             self._history = self.load_history()
         self._history.append(entry)
@@ -1454,15 +1465,27 @@ class DesktopPet:
         self.root.after(100, lambda: self.get_ai_response(question))
     
     def get_ai_response(self, question):
-        # Capture current screen and pass to AI so it can "see" the screen
+        """Kick off the AI call on a background thread so the UI stays responsive."""
+        # Capture screen on the main thread before handing off
         try:
             screen_img = self.capture_screen()
         except Exception:
             screen_img = None
 
-        answer = get_response(question, screen_image=screen_img)
+        def worker():
+            try:
+                answer = get_response(question, screen_image=screen_img)
+            except Exception as e:
+                answer = f"Oops, something went wrong 📎 ({e})"
+            # Post results back to the main (tkinter) thread
+            self.root.after(0, lambda: self._on_ai_response(answer))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_ai_response(self, answer):
+        """Called on the main thread once the AI has finished."""
         self.last_response = answer
-        
+
         # Add AI response to chat
         self.add_chat_message("Stapler-y", answer, "#4A90E2")
 
@@ -1472,16 +1495,15 @@ class DesktopPet:
             for cmd in commands:
                 result = self.handle_ai_command(cmd)
                 if result:
-                    # Report execution result in chat (system message)
                     self.add_chat_message("System", result, "#888888")
         except Exception as e:
             print(f"Error handling AI commands: {e}")
-        
+
         # Return to happy state
         self.state = "happy"
         self.happiness = min(100, self.happiness + 5)
         self.root.after(2000, lambda: self.return_to_state("idle"))
-        
+
         self.is_thinking = False
     
     def on_click(self, event):
@@ -1508,12 +1530,19 @@ class DesktopPet:
         
         self.last_click_time = current_time
         
-        # Start drag
-        self.drag_data["x"] = event.x
-        self.drag_data["y"] = event.y
+        # Start drag — store where inside the pet the user clicked (screen coords)
+        # so we can keep that offset constant throughout the drag.
+        self.drag_data["offset_x"] = event.x   # canvas-relative click position
+        self.drag_data["offset_y"] = event.y
         self.drag_data["start_x"] = self.x
         self.drag_data["start_y"] = self.y
         self.drag_data["dragging"] = True
+        # Seed velocity tracker so first on_drag has a valid baseline
+        self.drag_data["prev_x"] = self.x
+        self.drag_data["prev_y"] = self.y
+        self.drag_data["prev_time"] = time.monotonic()
+        self.drag_data["vel_x"] = 0.0
+        self.drag_data["vel_y"] = 0.0
         
         if self.state not in ["happy", "eat"]:
             self.state = "idle"
@@ -1522,23 +1551,39 @@ class DesktopPet:
         self.velocity_y = 0
     
     def on_drag(self, event):
-        """Handle dragging"""
-        if self.drag_data["dragging"]:
-            dx = event.x - self.drag_data["x"]
-            dy = event.y - self.drag_data["y"]
-            self.x += dx
-            self.y += dy
-            self.update_position()
+        """Handle dragging — use screen-absolute coordinates so the pet
+        stays pinned under the cursor regardless of window movement."""
+        if not self.drag_data["dragging"]:
+            return
+
+        # Compute new window position: cursor screen pos minus the
+        # canvas-relative offset recorded at click time.
+        new_x = event.x_root - self.drag_data["offset_x"]
+        new_y = event.y_root - self.drag_data["offset_y"]
+
+        # Track instantaneous velocity (pixels/second) for throw-on-release
+        now = time.monotonic()
+        dt = now - self.drag_data["prev_time"]
+        if dt > 0:
+            self.drag_data["vel_x"] = (new_x - self.drag_data["prev_x"]) / dt
+            self.drag_data["vel_y"] = (new_y - self.drag_data["prev_y"]) / dt
+        self.drag_data["prev_x"] = new_x
+        self.drag_data["prev_y"] = new_y
+        self.drag_data["prev_time"] = now
+
+        self.x = new_x
+        self.y = new_y
+        self.update_position()
     
     def on_release(self, event):
-        """Handle mouse release"""
+        """Handle mouse release — apply velocity measured during the drag."""
         if self.drag_data["dragging"]:
-            # Calculate throw velocity (very reduced to prevent easy death)
-            dx = self.x - self.drag_data["start_x"]
-            dy = self.y - self.drag_data["start_y"]
-            self.velocity_x = dx * 0.1  # Very reduced from 0.15
-            self.velocity_y = dy * 0.1  # Very reduced from 0.15
-            
+            # Use the instantaneous velocity tracked in on_drag (pixels/second).
+            # Scale down to a reasonable per-frame unit (game runs ~60 fps).
+            scale = 1.0 / 60.0
+            self.velocity_x = self.drag_data["vel_x"] * scale
+            self.velocity_y = self.drag_data["vel_y"] * scale
+
         self.drag_data["dragging"] = False
         self.happiness = min(100, self.happiness + 5)
     
