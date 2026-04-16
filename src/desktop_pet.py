@@ -12,7 +12,6 @@ try:
     from PIL import ImageGrab
 except Exception:
     ImageGrab = None
-import io
 try:
     import mss
 except Exception:
@@ -1830,7 +1829,8 @@ class DesktopPet:
                 img = self.capture_screen()
                 if img:
                     import datetime
-                    path = os.path.join('brain', f'screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+                    base = os.path.dirname(__file__)
+                    path = os.path.join(base, 'brain', f'screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
                     os.makedirs(os.path.dirname(path), exist_ok=True)
                     img.save(path)
                     return f'Screenshot saved to {path}.'

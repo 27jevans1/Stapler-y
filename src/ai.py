@@ -84,11 +84,15 @@ def _fallback_response(prompt: str) -> str:
     return "I heard: '" + (prompt if len(prompt) < 200 else prompt[:200] + "...") + "' — how can I help?"
 
 
-def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
+def get_response(prompt: str, screen_image=None) -> str:
     """Return a response for `prompt`.
 
     Attempts to use Ollama if available; otherwise uses a fallback.
     """
+    # Set up paths for saving screenshots
+    base = os.path.dirname(__file__)
+    screenshot_path = os.path.join(base, "brain", "last_screenshot.png")
+
     # If a screenshot image is provided, try to extract text (OCR) to include as context
     screen_context = None
     if screen_image is not None:
@@ -107,16 +111,12 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
                 except Exception as e:
                     # OCR failed (maybe tesseract binary missing) - save screenshot for inspection
                     try:
-                        os.makedirs("brain", exist_ok=True)
-                        screenshot_path = os.path.join("brain", "last_screenshot.png")
                         screen_image.save(screenshot_path)
                         screen_context = f"[Screenshot saved at {screenshot_path}]."
                     except Exception:
                         screen_context = None
             else:
                 # Save to disk so the caller/user can inspect it
-                os.makedirs("brain", exist_ok=True)
-                screenshot_path = os.path.join("brain", "last_screenshot.png")
                 try:
                     screen_image.save(screenshot_path)
                     screen_context = f"[Screenshot saved at {screenshot_path}]."
