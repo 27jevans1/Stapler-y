@@ -39,7 +39,15 @@ Using the UI
 - Right-click the pet to open the context menu. Use "💬 Chat with Me!" to open the chat window.
 - In the chat you can send messages to the AI. Chat history is saved to `brain/history.json`.
 - Use the "Clear" button in the chat input area to clear history.
-- In the pet menu choose "👀 View Screen" to open a screen viewer; press Refresh to re-capture.
+- In the pet menu choose "👀 View Screen" to open the screen viewer.
+
+Screen viewer
+- **Monitor selector** — if multiple monitors are detected, pick which one to view.
+- **Refresh** — manually re-capture the screen.
+- **Auto (5s)** — toggle automatic refresh every 5 seconds.
+- **Save** — save the current capture to `brain/screenshot_<timestamp>.png`.
+- The status bar shows the source resolution, display resolution, and capture time.
+- Captures run on a background thread so the pet stays animated.
 
 AI command formats (how the AI can control the pet)
 - JSON command (preferred for structure):
@@ -67,7 +75,8 @@ Supported commands
 
 How it works (high level)
 - `desktop_pet.py` controls the UI, animations, and interactions.
-- `ai.py` exposes `get_response(prompt, screen_image=None)`; if a screenshot is provided it will attempt OCR via pytesseract (if installed) and include extracted text in the prompt.
+- `ai.py` exposes `get_response(prompt, screen_image=None)`; when a screenshot is provided it is encoded as base64 and passed directly to vision-capable Ollama models (e.g. `llava`, `gemma3`). For non-vision models, OCR via pytesseract is attempted as a text fallback.
+- Set the `STAPLERY_OLLAMA_MODEL` environment variable to choose your model (default: `llama3`). Use a vision model like `llava` to enable screen-awareness.
 - `desktop_pet` captures the screen with `mss` (fallback to Pillow's ImageGrab) and passes the image to `ai.get_response`.
 - If the AI returns a command (JSON or command lines), `desktop_pet` will parse and execute it and post a `System` result back to chat.
 

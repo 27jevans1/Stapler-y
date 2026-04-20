@@ -9,6 +9,8 @@ This module exposes a single function `get_response(prompt)` which returns a str
 """
 import os
 import random
+import base64
+import io
 
 # Try to use Ollama if configured
 try:
@@ -22,6 +24,9 @@ You love stapling things together and keeping documents neat.
 Keep responses concise (2-3 sentences max) and cheerful.
 Occasionally mention staples, paper, or office work in your responses.
 Use emojis sparingly (mostly 📎).
+
+You may receive a screenshot of the user's screen. If so, describe what you see
+and use it to give more relevant, context-aware help.
 
 Instructions for command output:
 The agent (Stapler-y) can also issue control commands to the desktop pet process.
@@ -84,20 +89,28 @@ def _fallback_response(prompt: str) -> str:
     return "I heard: '" + (prompt if len(prompt) < 200 else prompt[:200] + "...") + "' — how can I help?"
 
 
-def get_response(prompt: str, screen_image=None) -> str:
+def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
     """Return a response for `prompt`.
 
     Attempts to use Ollama if available; otherwise uses a fallback.
     """
-    # Set up paths for saving screenshots
-    base = os.path.dirname(__file__)
-    screenshot_path = os.path.join(base, "brain", "last_screenshot.png")
+    base_dir = os.path.dirname(__file__)
 
-    # If a screenshot image is provided, try to extract text (OCR) to include as context
-    screen_context = None
+    # ── Build screen context ──────────────────────────────────────────────────
+    screen_context = None   # plain-text context for non-vision path
+    screen_b64      = None  # base64 PNG for vision models
+
     if screen_image is not None:
+        # Always encode the image so vision models can use it directly
         try:
-            # Expecting a PIL Image
+            buf = io.BytesIO()
+            screen_image.save(buf, format='PNG')
+            screen_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        except Exception:
+            screen_b64 = None
+
+        # Also try OCR as a text fallback for non-vision models
+        try:
             try:
                 import pytesseract
             except Exception:
@@ -105,53 +118,58 @@ def get_response(prompt: str, screen_image=None) -> str:
 
             if pytesseract:
                 try:
-                    ocr_text = pytesseract.image_to_string(screen_image)
+                    ocr_text = pytesseract.image_to_string(screen_image).strip()
                     if ocr_text:
                         screen_context = "Screen OCR:\n" + ocr_text
-                except Exception as e:
-                    # OCR failed (maybe tesseract binary missing) - save screenshot for inspection
-                    try:
-                        screen_image.save(screenshot_path)
-                        screen_context = f"[Screenshot saved at {screenshot_path}]."
-                    except Exception:
-                        screen_context = None
-            else:
-                # Save to disk so the caller/user can inspect it
-                try:
-                    screen_image.save(screenshot_path)
-                    screen_context = f"[Screenshot saved at {screenshot_path}]."
                 except Exception:
-                    screen_context = None
-        except Exception:
-            screen_context = None
+                    pass
 
+            if not screen_context:
+                # Save last screenshot so users can inspect it manually
+                try:
+                    shot_path = os.path.join(base_dir, "brain", "last_screenshot.png")
+                    os.makedirs(os.path.dirname(shot_path), exist_ok=True)
+                    screen_image.save(shot_path)
+                    screen_context = f"[Screenshot saved to {shot_path}]"
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # ── Call Ollama ───────────────────────────────────────────────────────────
     if ollama:
+        model = os.environ.get("STAPLERY_OLLAMA_MODEL", "llama3")
+        print(f"Using Ollama model: {model}")
         try:
-            # Use Ollama's chat completion
-            # If we have screen context, append it to the user message
-            user_content = prompt
-            if screen_context:
-                user_content = prompt + "\n\n" + screen_context
+            user_msg: dict = {"role": "user", "content": prompt}
+
+            # Attach image for vision-capable models (llava, gemma3, etc.)
+            # Non-vision models ignore the images field without erroring.
+            if screen_b64 is not None:
+                user_msg["images"] = [screen_b64]
+            elif screen_context:
+                user_msg["content"] = prompt + "\n\n" + screen_context
 
             resp = ollama.chat(
-                model=os.environ.get("STAPLERY_OLLAMA_MODEL", "llama3"),
-                messages=[{"role": "system", "content": systemMessage},
-                          {"role": "user", "content": user_content}]
+                model=model,
+                messages=[{"role": "system", "content": systemMessage}, user_msg]
             )
-            text = resp.message.content.strip()
-            
+            # ollama >= 0.2 returns a ChatResponse object, not a plain dict
+            if hasattr(resp, "message"):
+                text = (resp.message.content or "").strip()
+            else:
+                text = resp.get("message", {}).get("content", "").strip()
+
             if text:
                 return text
-            else:
-                print("Ollama response was empty, falling back.")
-                return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
+            print("Ollama response was empty, using fallback.")
         except Exception as e:
-            print("Error calling Ollama:", e)
-            return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
-    else:
-        print("Ollama not available, using fallback response.")
-        return _fallback_response(prompt if not screen_context else prompt + "\n\n" + (screen_context or ""))
+            print(f"Ollama error: {e}")
+
+    # ── Fallback ──────────────────────────────────────────────────────────────
+    ctx = (screen_context or "") if screen_b64 is None else "[image attached]"
+    return _fallback_response(prompt if not ctx else f"{prompt}\n\n{ctx}")
 
 if __name__ == "__main__":
-    # Simple test
+    # Quick test
     print(get_response("Hello, who are you?"))

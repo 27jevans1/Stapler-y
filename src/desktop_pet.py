@@ -1324,99 +1324,272 @@ class DesktopPet:
                 pass
 
     # --- Screen viewing helpers ---
-    def capture_screen(self):
-        """Capture the virtual screen as a PIL Image. Returns None on failure."""
-        try:
-            left = getattr(self, 'screen_left', None)
-            top = getattr(self, 'screen_top', None)
-            w = getattr(self, 'screen_width', None)
-            h = getattr(self, 'screen_height', None)
+    def capture_screen(self, monitor_index=None):
+        """Capture the screen as a PIL Image. Returns None on failure.
 
-            # Prefer mss if available (robust multi-monitor capture)
+        monitor_index:
+          None  — use stored virtual-screen bounds (default)
+          0     — mss virtual screen (all monitors combined)
+          1+    — specific monitor by mss index
+        """
+        try:
             if mss:
                 with mss.mss() as sct:
-                    if None not in (left, top, w, h):
-                        monitor = {
-                            'left': int(left), 'top': int(top),
-                            'width': int(w), 'height': int(h)
-                        }
+                    if monitor_index is not None:
+                        monitors = sct.monitors
+                        idx = max(0, min(monitor_index, len(monitors) - 1))
+                        monitor = monitors[idx]
                     else:
-                        # monitor 0 is the virtual screen in mss
-                        monitor = sct.monitors[0]
+                        left = getattr(self, 'screen_left', None)
+                        top  = getattr(self, 'screen_top',  None)
+                        w    = getattr(self, 'screen_width', None)
+                        h    = getattr(self, 'screen_height', None)
+                        if None not in (left, top, w, h):
+                            monitor = {'left': int(left), 'top': int(top),
+                                       'width': int(w), 'height': int(h)}
+                        else:
+                            monitor = sct.monitors[0]
                     sct_img = sct.grab(monitor)
-                    # Create PIL Image from raw data
-                    img = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
-                    return img
+                    return Image.frombytes('RGB', sct_img.size, sct_img.rgb)
 
-            # Fallback to PIL ImageGrab if mss not available
             if ImageGrab:
+                left = getattr(self, 'screen_left', None)
+                top  = getattr(self, 'screen_top',  None)
+                w    = getattr(self, 'screen_width', None)
+                h    = getattr(self, 'screen_height', None)
                 if None not in (left, top, w, h):
-                    bbox = (int(left), int(top), int(left + w), int(top + h))
-                    return ImageGrab.grab(bbox=bbox)
-                else:
-                    return ImageGrab.grab()
+                    return ImageGrab.grab(bbox=(int(left), int(top),
+                                               int(left + w), int(top + h)))
+                return ImageGrab.grab()
             return None
         except Exception as e:
             print(f"Failed to capture screen: {e}")
             return None
 
+    def get_monitor_list(self):
+        """Return list of (label, monitor_index) for available monitors."""
+        if mss:
+            try:
+                with mss.mss() as sct:
+                    result = []
+                    for i, m in enumerate(sct.monitors):
+                        if i == 0:
+                            label = f"All Monitors  ({m['width']}×{m['height']})"
+                        else:
+                            label = f"Monitor {i}  ({m['width']}×{m['height']})"
+                        result.append((label, i))
+                    return result
+            except Exception:
+                pass
+        return [("Primary Screen", None)]
+
+    # ── Screen viewer ─────────────────────────────────────────────────────────
+
     def show_screen_view(self):
-        """Open a simple window that shows the current screen capture."""
-        img = self.capture_screen()
-        if img is None:
-            messagebox.showinfo("View Screen", "Screen capture not available on this system.")
+        """Open (or focus) the screen viewer window."""
+        sv = getattr(self, '_sv', None)
+        if sv and sv.get('win') and sv['win'].winfo_exists():
+            sv['win'].lift()
+            self._sv_capture()
             return
 
-        # Create or reuse viewer window
+        win = tk.Toplevel(self.root)
+        win.title("Screen View 🖥️")
+        win.geometry("900x620")
+        win.configure(bg='#1E1E1E')
+
+        # All viewer state lives in this dict so nothing leaks onto self
+        sv = {
+            'win':          win,
+            'monitor_idx':  None,   # None = use stored bounds
+            'auto':         False,
+            'auto_job':     None,
+            'last_img':     None,   # most-recently captured PIL image
+            'photo':        None,   # PhotoImage ref (must stay alive)
+        }
+        self._sv = sv
+
+        # ── Toolbar ───────────────────────────────────────────
+        toolbar = tk.Frame(win, bg='#2D2D2D', pady=5)
+        toolbar.pack(fill=tk.X, side=tk.TOP)
+
+        def _tbtn(text, cmd):
+            b = tk.Button(toolbar, text=text, command=cmd,
+                          bg='#3D3D3D', fg='#FFFFFF',
+                          activebackground='#555555', activeforeground='#FFFFFF',
+                          relief=tk.FLAT, font=('Arial', 9),
+                          padx=10, pady=3, cursor='hand2')
+            b.pack(side=tk.LEFT, padx=3)
+            return b
+
+        # Monitor selector — only shown when mss found multiple monitors
+        monitors = self.get_monitor_list()
+        if len(monitors) > 1:
+            tk.Label(toolbar, text="Monitor:", bg='#2D2D2D', fg='#AAAAAA',
+                     font=('Arial', 9)).pack(side=tk.LEFT, padx=(8, 2))
+            mon_labels  = [m[0] for m in monitors]
+            mon_indices = [m[1] for m in monitors]
+            mon_var = tk.StringVar(value=mon_labels[0])
+
+            def _on_monitor_change(*_):
+                idx = mon_labels.index(mon_var.get())
+                sv['monitor_idx'] = mon_indices[idx]
+                self._sv_capture()
+
+            om = tk.OptionMenu(toolbar, mon_var, *mon_labels,
+                               command=lambda _: _on_monitor_change())
+            om.config(bg='#3D3D3D', fg='#FFFFFF', activebackground='#555555',
+                      activeforeground='#FFFFFF', relief=tk.FLAT,
+                      font=('Arial', 9), highlightthickness=0, width=28)
+            om['menu'].config(bg='#3D3D3D', fg='#FFFFFF',
+                              activebackground='#555555', activeforeground='#FFFFFF')
+            om.pack(side=tk.LEFT, padx=(0, 6))
+
+            tk.Frame(toolbar, width=1, bg='#555555').pack(
+                side=tk.LEFT, fill=tk.Y, padx=4)
+
+        _tbtn("🔄  Refresh", self._sv_capture)
+
+        # Auto-refresh toggle
+        auto_var = tk.BooleanVar(value=False)
+        auto_chk = tk.Checkbutton(
+            toolbar, text="⏱  Auto (5s)", variable=auto_var,
+            command=lambda: self._sv_set_auto(auto_var.get()),
+            bg='#2D2D2D', fg='#AAAAAA', selectcolor='#444444',
+            activebackground='#2D2D2D', activeforeground='#FFFFFF',
+            font=('Arial', 9), cursor='hand2')
+        auto_chk.pack(side=tk.LEFT, padx=4)
+
+        _tbtn("💾  Save", self._sv_save)
+
+        tk.Button(toolbar, text="✕  Close", command=win.destroy,
+                  bg='#8B0000', fg='#FFFFFF',
+                  activebackground='#B22222', activeforeground='#FFFFFF',
+                  relief=tk.FLAT, font=('Arial', 9),
+                  padx=10, pady=3, cursor='hand2').pack(side=tk.RIGHT, padx=6)
+
+        # ── Image area ────────────────────────────────────────
+        img_frame = tk.Frame(win, bg='#1E1E1E')
+        img_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(6, 0))
+
+        img_lbl = tk.Label(img_frame, bg='#1E1E1E',
+                           text="Capturing…", fg='#666666',
+                           font=('Arial', 13))
+        img_lbl.pack(fill=tk.BOTH, expand=True)
+        sv['img_lbl'] = img_lbl
+
+        # ── Status bar ────────────────────────────────────────
+        status = tk.Label(win, text="", bg='#2D2D2D', fg='#777777',
+                          font=('Arial', 8), anchor='w', padx=10, pady=3)
+        status.pack(fill=tk.X, side=tk.BOTTOM)
+        sv['status'] = status
+
+        # Clean up auto-refresh job when window is closed
+        def _on_close():
+            self._sv_set_auto(False)
+            win.destroy()
+        win.protocol("WM_DELETE_WINDOW", _on_close)
+
+        self._sv_capture()
+
+    def _sv_capture(self):
+        """Kick off a background screen capture and update the viewer."""
+        sv = getattr(self, '_sv', None)
+        if not sv or not sv['win'].winfo_exists():
+            return
+        sv['img_lbl'].config(text="Capturing…", image='')
+        sv['status'].config(text="  Capturing screen…")
+        monitor_idx = sv['monitor_idx']
+
+        def worker():
+            img = self.capture_screen(monitor_index=monitor_idx)
+            self.root.after(0, lambda: self._sv_update(img))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _sv_update(self, img):
+        """Called on the main thread once a background capture completes."""
+        from datetime import datetime
+        sv = getattr(self, '_sv', None)
+        if not sv or not sv['win'].winfo_exists():
+            return
+
+        if img is None:
+            sv['img_lbl'].config(text="Screen capture failed.", image='')
+            sv['status'].config(text="  Capture failed — is mss or Pillow installed?")
+            return
+
+        sv['last_img'] = img
+        win = sv['win']
+        win.update_idletasks()
+
+        # Fit image inside the available canvas area
+        max_w = max(200, win.winfo_width()  - 16)
+        max_h = max(150, win.winfo_height() - 80)   # leave room for toolbar + status
+        img_w, img_h = img.size
+        scale = min(1.0, max_w / img_w, max_h / img_h)
+        disp_w, disp_h = int(img_w * scale), int(img_h * scale)
+
         try:
-            viewer = getattr(self, 'screen_viewer', None)
-            if viewer and viewer.winfo_exists():
-                viewer.lift()
-                # update image
-            else:
-                viewer = tk.Toplevel(self.root)
-                viewer.title("Screen View")
-                self.screen_viewer = viewer
+            resample = Image.Resampling.LANCZOS
+        except AttributeError:
+            resample = getattr(Image, 'LANCZOS', Image.BICUBIC)
 
-            # Resize image to fit window if necessary
-            max_w, max_h = 800, 600
-            img_w, img_h = img.size
-            scale = min(1.0, max_w / img_w, max_h / img_h)
-            if scale < 1.0:
-                new_size = (int(img_w * scale), int(img_h * scale))
-                # Use modern resampling attribute when available
-                try:
-                    resample = Image.Resampling.LANCZOS
-                except Exception:
-                    resample = getattr(Image, 'LANCZOS', Image.BICUBIC)
-                img_disp = img.resize(new_size, resample)
-            else:
-                img_disp = img
+        photo = ImageTk.PhotoImage(img.resize((disp_w, disp_h), resample))
+        sv['photo'] = photo   # keep reference alive
+        sv['img_lbl'].config(image=photo, text='')
 
-            photo = ImageTk.PhotoImage(img_disp)
-            # Keep reference to avoid GC
-            self._screen_view_image = photo
+        ts = datetime.now().strftime("%H:%M:%S")
+        sv['status'].config(
+            text=f"  Source: {img_w}×{img_h}  →  displayed at {disp_w}×{disp_h}"
+                 f"  ·  Captured at {ts}"
+        )
 
-            # Put image in label
-            if hasattr(self, '_screen_view_label') and self._screen_view_label.winfo_exists():
-                self._screen_view_label.config(image=photo)
-            else:
-                lbl = tk.Label(viewer, image=photo)
-                lbl.pack(fill=tk.BOTH, expand=True)
-                self._screen_view_label = lbl
+    def _sv_set_auto(self, enabled: bool):
+        """Enable or disable the 5-second auto-refresh."""
+        sv = getattr(self, '_sv', None)
+        if not sv:
+            return
+        sv['auto'] = enabled
+        if sv.get('auto_job'):
+            try:
+                self.root.after_cancel(sv['auto_job'])
+            except Exception:
+                pass
+            sv['auto_job'] = None
+        if enabled:
+            self._sv_schedule_auto()
 
-            # Buttons frame
-            btn_frame = getattr(self, '_screen_view_btns', None)
-            if not btn_frame or not btn_frame.winfo_exists():
-                btn_frame = tk.Frame(viewer)
-                btn_frame.pack(fill=tk.X)
-                refresh = tk.Button(btn_frame, text="Refresh", command=self.show_screen_view)
-                refresh.pack(side=tk.LEFT, padx=4, pady=4)
-                close = tk.Button(btn_frame, text="Close", command=viewer.destroy)
-                close.pack(side=tk.RIGHT, padx=4, pady=4)
-                self._screen_view_btns = btn_frame
+    def _sv_schedule_auto(self):
+        """Schedule the next auto-refresh tick."""
+        sv = getattr(self, '_sv', None)
+        if not sv or not sv.get('auto'):
+            return
+        if not sv['win'].winfo_exists():
+            sv['auto'] = False
+            return
+
+        def tick():
+            self._sv_capture()
+            self._sv_schedule_auto()
+
+        sv['auto_job'] = self.root.after(5000, tick)
+
+    def _sv_save(self):
+        """Save the last captured image to brain/."""
+        sv = getattr(self, '_sv', None)
+        if not sv or sv.get('last_img') is None:
+            return
+        try:
+            import datetime as dt
+            base = os.path.dirname(__file__)
+            stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = os.path.join(base, 'brain', f'screenshot_{stamp}.png')
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            sv['last_img'].save(path)
+            sv['status'].config(text=f"  Saved → {path}")
         except Exception as e:
-            print(f"Failed to open screen viewer: {e}")
+            sv['status'].config(text=f"  Save failed: {e}")
     
     def ask_question(self):
         """Send question to AI"""
@@ -1830,7 +2003,8 @@ class DesktopPet:
                 if img:
                     import datetime
                     base = os.path.dirname(__file__)
-                    path = os.path.join(base, 'brain', f'screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+                    path = os.path.join(base, 'brain',
+                                        f'screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
                     os.makedirs(os.path.dirname(path), exist_ok=True)
                     img.save(path)
                     return f'Screenshot saved to {path}.'
