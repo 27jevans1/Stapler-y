@@ -40,12 +40,14 @@ Using the UI
 - In the chat you can send messages to the AI. Chat history is saved to `brain/history.json`.
 - Use the "Clear" button in the chat input area to clear history.
 - In the pet menu choose "👀 View Screen" to open the screen viewer.
+- Keyboard shortcuts (click the pet first to focus it): `Space` or `C` → chat, `S` → screen viewer.
 
 Screen viewer
 - **Monitor selector** — if multiple monitors are detected, pick which one to view.
 - **Refresh** — manually re-capture the screen.
 - **Auto (5s)** — toggle automatic refresh every 5 seconds.
 - **Save** — save the current capture to `brain/screenshot_<timestamp>.png`.
+- **Ask AI prompt bar** — type a question about what's on screen and press Enter or click "🤖 Ask AI". The reply appears in the chat window. Leave the prompt blank to use a sensible default ("What do you see?").
 - The status bar shows the source resolution, display resolution, and capture time.
 - Captures run on a background thread so the pet stays animated.
 

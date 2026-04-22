@@ -1,24 +1,26 @@
 """Simple AI wrapper for Stapler-y.
 
 Behavior:
-- If `ollama` package is installed,
-  it will call Ollama's chat completions.
-- Otherwise it falls back to a lightweight rule/canned response generator.
+- If `ollama` package is installed, calls Ollama's chat completions.
+- Otherwise falls back to a lightweight rule/canned response generator.
 
-This module exposes a single function `get_response(prompt)` which returns a string.
+Exposes a single function: get_response(prompt, history=None, screen_image=None)
 """
 import os
 import random
 import base64
 import io
 
-# Try to use Ollama if configured
 try:
     import ollama
 except Exception:
     ollama = None
 
-systemMessage = """You are Stapler-y: a helpful, friendly desktop stapler that has come to life!
+# ---------------------------------------------------------------------------
+# System prompt
+# ---------------------------------------------------------------------------
+
+SYSTEM_MESSAGE = """You are Stapler-y: a helpful, friendly desktop stapler that has come to life!
 You're enthusiastic about office supplies, organizing, and helping people stay productive.
 You love stapling things together and keeping documents neat.
 Keep responses concise (2-3 sentences max) and cheerful.
@@ -37,79 +39,78 @@ Example with args: {"command":"move_to","args":{"x":200,"y":150}}
 If you are providing a normal chat reply (not a command), respond with plain natural language as usual.
 """
 
-fallbackData = [
+# ---------------------------------------------------------------------------
+# Fallback responses
+# ---------------------------------------------------------------------------
+
+FALLBACK_DATA = [
     {
-        "prompts": [
-            "hello",
-            "hey",
-            "hi"
-        ],
+        "prompts": ["hello", "hey", "hi"],
         "responses": [
             "Hey there! Need some help?",
-            "Hello! Ready when you are."
-        ]
+            "Hello! Ready when you are.",
+        ],
     },
     {
-        "prompts": [
-            "who are you",
-            "what are you",
-            "your name"
-        ],
+        "prompts": ["who are you", "what are you", "your name"],
         "responses": [
             "Hello, I'm Stapler-y, your personal AI Assistant!",
-            "Hi! I'm Stapler-y."
-        ]
+            "Hi! I'm Stapler-y.",
+        ],
     },
     {
-        "prompts": [
-            "you do",
-            "your purpose",
-            "your job",
-            "why are you"
-        ],
+        "prompts": ["you do", "your purpose", "your job", "why are you"],
         "responses": [
             "My job is to help you anyway I can!",
-            "I can help you with anything! Do you want some help?"
-        ]
-    }
+            "I can help you with anything! Do you want some help?",
+        ],
+    },
 ]
 
+
 def _fallback_response(prompt: str) -> str:
-    # Very simple fallback: some heuristics + canned replies
-
-    userPrompt = prompt.lower().strip()
-
-    if not userPrompt:
+    user_prompt = prompt.lower().strip()
+    if not user_prompt:
         return "Say something and I'll try to help!"
-    for fallbackDict in fallbackData:
-        if any(word in userPrompt for word in fallbackDict["prompts"]):
-            return random.choice(fallbackDict["responses"])
-    
-    # echo-ish with a tiny personality
-    return "I heard: '" + (prompt if len(prompt) < 200 else prompt[:200] + "...") + "' — how can I help?"
+    for item in FALLBACK_DATA:
+        if any(word in user_prompt for word in item["prompts"]):
+            return random.choice(item["responses"])
+    truncated = prompt if len(prompt) < 200 else prompt[:200] + "..."
+    return f"I heard: '{truncated}' — how can I help?"
 
 
-def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
-    """Return a response for `prompt`.
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
-    Attempts to use Ollama if available; otherwise uses a fallback.
+def get_response(
+    prompt: str,
+    history: list | None = None,
+    screen_image=None,
+) -> str:
+    """Return a response for *prompt*.
+
+    Args:
+        prompt: The user's current message.
+        history: Optional list of persisted history dicts
+                 ({"sender": "You"|"Stapler-y", "message": str, ...}).
+                 When provided the full conversation is sent to Ollama so it
+                 can maintain context across turns.
+        screen_image: Optional PIL Image of the user's screen.
     """
-    base_dir = os.path.dirname(__file__)
-
-    # ── Build screen context ──────────────────────────────────────────────────
-    screen_context = None   # plain-text context for non-vision path
-    screen_b64      = None  # base64 PNG for vision models
+    # ── Build screen context ──────────────────────────────────────────────
+    screen_context: str | None = None   # plain-text fallback for non-vision models
+    screen_b64: str | None = None       # base64 PNG for vision models
 
     if screen_image is not None:
-        # Always encode the image so vision models can use it directly
         try:
             buf = io.BytesIO()
-            screen_image.save(buf, format='PNG')
-            screen_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            screen_image.save(buf, format="PNG")
+            screen_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
         except Exception:
             screen_b64 = None
 
-        # Also try OCR as a text fallback for non-vision models
+        # OCR text fallback for non-vision models
         try:
             try:
                 import pytesseract
@@ -125,8 +126,9 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
                     pass
 
             if not screen_context:
-                # Save last screenshot so users can inspect it manually
+                # Save screenshot so the user can inspect it manually
                 try:
+                    base_dir = os.path.dirname(__file__)
                     shot_path = os.path.join(base_dir, "brain", "last_screenshot.png")
                     os.makedirs(os.path.dirname(shot_path), exist_ok=True)
                     screen_image.save(shot_path)
@@ -136,24 +138,15 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
         except Exception:
             pass
 
-    # ── Call Ollama ───────────────────────────────────────────────────────────
+    # ── Call Ollama ───────────────────────────────────────────────────────
     if ollama:
         model = os.environ.get("STAPLERY_OLLAMA_MODEL", "llama3")
         print(f"Using Ollama model: {model}")
         try:
-            user_msg: dict = {"role": "user", "content": prompt}
+            messages = _build_messages(prompt, history, screen_context, screen_b64)
 
-            # Attach image for vision-capable models (llava, gemma3, etc.)
-            # Non-vision models ignore the images field without erroring.
-            if screen_b64 is not None:
-                user_msg["images"] = [screen_b64]
-            elif screen_context:
-                user_msg["content"] = prompt + "\n\n" + screen_context
+            resp = ollama.chat(model=model, messages=messages)
 
-            resp = ollama.chat(
-                model=model,
-                messages=[{"role": "system", "content": systemMessage}, user_msg]
-            )
             # ollama >= 0.2 returns a ChatResponse object, not a plain dict
             if hasattr(resp, "message"):
                 text = (resp.message.content or "").strip()
@@ -166,10 +159,54 @@ def get_response(prompt: str, timeout: float = 10.0, screen_image=None) -> str:
         except Exception as e:
             print(f"Ollama error: {e}")
 
-    # ── Fallback ──────────────────────────────────────────────────────────────
+    # ── Fallback ──────────────────────────────────────────────────────────
     ctx = (screen_context or "") if screen_b64 is None else "[image attached]"
     return _fallback_response(prompt if not ctx else f"{prompt}\n\n{ctx}")
 
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _build_messages(
+    prompt: str,
+    history: list | None,
+    screen_context: str | None,
+    screen_b64: str | None,
+) -> list:
+    """Assemble the full message list to send to Ollama.
+
+    Layout:
+        [system]  SYSTEM_MESSAGE
+        [user]    prior user turn          ⎫
+        [asst]    prior assistant turn     ⎬  repeated for each history pair
+        ...                                ⎭
+        [user]    current prompt  (+ image or OCR if available)
+    """
+    messages: list = [{"role": "system", "content": SYSTEM_MESSAGE}]
+
+    # Replay conversation history (skip 'System' meta-messages)
+    if history:
+        for entry in history:
+            sender = entry.get("sender", "")
+            message = entry.get("message", "")
+            if not message:
+                continue
+            if sender == "You":
+                messages.append({"role": "user", "content": message})
+            elif sender == "Stapler-y":
+                messages.append({"role": "assistant", "content": message})
+
+    # Current turn
+    user_msg: dict = {"role": "user", "content": prompt}
+    if screen_b64 is not None:
+        user_msg["images"] = [screen_b64]
+    elif screen_context:
+        user_msg["content"] = f"{prompt}\n\n{screen_context}"
+    messages.append(user_msg)
+
+    return messages
+
+
 if __name__ == "__main__":
-    # Quick test
     print(get_response("Hello, who are you?"))
