@@ -141,7 +141,6 @@ def get_response(
     # ── Call Ollama ───────────────────────────────────────────────────────
     if ollama:
         model = os.environ.get("STAPLERY_OLLAMA_MODEL", "llama3")
-        print(f"Using Ollama model: {model}")
         try:
             messages = _build_messages(prompt, history, screen_context, screen_b64)
 

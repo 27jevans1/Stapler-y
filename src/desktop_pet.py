@@ -3,8 +3,6 @@ from tkinter import Menu, messagebox
 import random
 import math
 import os
-import json
-import re
 import threading
 import time
 from PIL import Image, ImageDraw, ImageTk, ImageOps
@@ -57,6 +55,13 @@ class DesktopPet:
         self.chat_window = None
         self.is_thinking = False
         self.last_response = ""
+
+        # Screen-context settings
+        # Whether the AI is allowed to see the screen at all
+        self._screen_context_enabled = False
+        # Which monitor index to capture for the AI (None = stored virtual bounds)
+        # Kept in sync with the Screen Viewer monitor dropdown
+        self._ai_monitor_index = None
         
         # Movement targets
         self.target_x = None
@@ -908,6 +913,8 @@ class DesktopPet:
             'auto_job': None, 'last_img': None, 'photo': None,
         }
         self._sv = sv
+        # Default AI capture target to whatever the viewer will show first
+        self._ai_monitor_index = None
 
         toolbar = tk.Frame(win, bg='#2D2D2D', pady=5)
         toolbar.pack(fill=tk.X, side=tk.TOP)
@@ -931,6 +938,8 @@ class DesktopPet:
             def _on_monitor_change(*_):
                 idx = mon_labels.index(mon_var.get())
                 sv['monitor_idx'] = mon_indices[idx]
+                # Keep the AI capture target in sync
+                self._ai_monitor_index = mon_indices[idx]
                 self._sv_capture()
 
             om = tk.OptionMenu(toolbar, mon_var, *mon_labels, command=lambda _: _on_monitor_change())
@@ -1072,11 +1081,54 @@ class DesktopPet:
             return
         self.chat_window = tk.Toplevel(self.root)
         self.chat_window.title("Chat with Stapler-y 📎")
-        self.chat_window.geometry("400x500")
+        self.chat_window.geometry("420x540")
         self.chat_window.configure(bg='#F0F0F0')
 
+        # ── Toolbar row (screen toggle + viewer button) ───────────────────
+        toolbar = tk.Frame(self.chat_window, bg='#E0E0E0', pady=4)
+        toolbar.pack(fill=tk.X, padx=10, pady=(8, 0))
+
+        # Screen-context toggle — kept in sync with self._screen_context_enabled
+        screen_var = tk.BooleanVar(value=self._screen_context_enabled)
+
+        def _on_screen_toggle():
+            self._screen_context_enabled = screen_var.get()
+            if self._screen_context_enabled:
+                screen_chk.config(fg='#1B5E20', selectcolor='#C8E6C9')
+            else:
+                screen_chk.config(fg='#555555', selectcolor='#E0E0E0')
+
+        screen_chk = tk.Checkbutton(
+            toolbar,
+            text="🖥️  Let AI see screen",
+            variable=screen_var,
+            command=_on_screen_toggle,
+            bg='#E0E0E0',
+            fg='#555555',
+            selectcolor='#E0E0E0',
+            activebackground='#E0E0E0',
+            font=('Arial', 9),
+            cursor='hand2',
+        )
+        screen_chk.pack(side=tk.LEFT, padx=(4, 0))
+
+        # Apply initial colour so a pre-enabled toggle looks right on re-open
+        if self._screen_context_enabled:
+            screen_chk.config(fg='#1B5E20', selectcolor='#C8E6C9')
+
+        viewer_btn = tk.Button(
+            toolbar,
+            text="📺  Open Viewer",
+            command=self.show_screen_view,
+            bg='#3D3D3D', fg='#FFFFFF',
+            activebackground='#555555', activeforeground='#FFFFFF',
+            relief=tk.FLAT, font=('Arial', 9), padx=8, pady=2, cursor='hand2',
+        )
+        viewer_btn.pack(side=tk.RIGHT, padx=(0, 4))
+
+        # ── Chat history display ──────────────────────────────────────────
         history_frame = tk.Frame(self.chat_window, bg='#F0F0F0')
-        history_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        history_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(6, 0))
 
         self.chat_history = tk.Text(
             history_frame, wrap=tk.WORD, bg='#FFFFFF',
@@ -1098,8 +1150,9 @@ class DesktopPet:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.chat_history.config(yscrollcommand=scrollbar.set)
 
+        # ── Input row ─────────────────────────────────────────────────────
         input_frame = tk.Frame(self.chat_window, bg='#F0F0F0')
-        input_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+        input_frame.pack(fill=tk.X, padx=10, pady=(4, 10))
 
         self.question_entry = tk.Entry(input_frame, font=('Arial', 11), relief=tk.FLAT, bg='#FFFFFF')
         self.question_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, ipady=5)
@@ -1204,10 +1257,12 @@ class DesktopPet:
 
     def get_ai_response(self, question):
         """Kick off the AI call on a background thread."""
-        try:
-            screen_img = self.capture_screen()
-        except Exception:
-            screen_img = None
+        screen_img = None
+        if self._screen_context_enabled:
+            try:
+                screen_img = self.capture_screen(monitor_index=self._ai_monitor_index)
+            except Exception:
+                screen_img = None
 
         # Snapshot history now (on main thread) so the worker has a stable copy
         history_snapshot = list(getattr(self, '_history', []))
@@ -1329,7 +1384,6 @@ class DesktopPet:
             menu.add_separator()
             menu.add_command(label=f"🖥️  Screen: {self.screen_width}x{self.screen_height}", state="disabled")
             menu.add_command(label="🔄 Refresh Monitors", command=self.update_screen_bounds)
-            menu.add_command(label="👀 View Screen", command=self.show_screen_view)
             menu.add_separator()
             menu.add_command(label="💡 Throw EXTREMELY hard to explode!", state="disabled")
             menu.add_separator()
