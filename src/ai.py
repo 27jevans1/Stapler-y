@@ -20,6 +20,11 @@ except Exception:
 # System prompt
 # ---------------------------------------------------------------------------
 
+from elderCore import (
+    ELDER_SYSTEM_MESSAGE,
+    elderToggle
+)
+
 SYSTEM_MESSAGE = """You are Stapler-y: a helpful, friendly desktop stapler that has come to life!
 You're enthusiastic about office supplies, organizing, and helping people stay productive.
 You love stapling things together and keeping documents neat.
@@ -182,7 +187,11 @@ def _build_messages(
         ...                                ⎭
         [user]    current prompt  (+ image or OCR if available)
     """
-    messages: list = [{"role": "system", "content": SYSTEM_MESSAGE}]
+    if elderToggle:
+        system_msg = ELDER_SYSTEM_MESSAGE
+    else:
+        system_msg = SYSTEM_MESSAGE
+    messages: list = [{"role": "system", "content": system_msg}]
 
     # Replay conversation history (skip 'System' meta-messages)
     if history:
