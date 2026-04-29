@@ -46,11 +46,6 @@ class DesktopPet:
         self.particles = []
         self.death_timer = 0
         
-        # Personality stats
-        self.energy = 100
-        self.happiness = 80
-        self.hunger = 50
-        
         # AI Chat
         self.chat_window = None
         self.is_thinking = False
@@ -813,9 +808,6 @@ class DesktopPet:
         self.y = self.primary_height // 2
         self.velocity_x = 0
         self.velocity_y = 0
-        self.happiness = 80
-        self.energy = 100
-        self.hunger = 50
     
     def return_to_state(self, state):
         if self.state not in ["eat", "sleep", "thinking"]:
@@ -908,13 +900,15 @@ class DesktopPet:
         win.geometry("900x620")
         win.configure(bg='#1E1E1E')
 
+        monitors = self.get_monitor_list()
+        first_idx = monitors[0][1] if monitors else None
         sv = {
-            'win': win, 'monitor_idx': None, 'auto': False,
+            'win': win, 'monitor_idx': first_idx, 'auto': False,
             'auto_job': None, 'last_img': None, 'photo': None,
         }
         self._sv = sv
         # Default AI capture target to whatever the viewer will show first
-        self._ai_monitor_index = None
+        self._ai_monitor_index = first_idx
 
         toolbar = tk.Frame(win, bg='#2D2D2D', pady=5)
         toolbar.pack(fill=tk.X, side=tk.TOP)
@@ -927,7 +921,6 @@ class DesktopPet:
             b.pack(side=tk.LEFT, padx=3)
             return b
 
-        monitors = self.get_monitor_list()
         if len(monitors) > 1:
             tk.Label(toolbar, text="Monitor:", bg='#2D2D2D', fg='#AAAAAA',
                      font=('Arial', 9)).pack(side=tk.LEFT, padx=(8, 2))
@@ -1288,7 +1281,6 @@ class DesktopPet:
         except Exception as e:
             print(f"Error handling AI commands: {e}")
         self.state = "happy"
-        self.happiness = min(100, self.happiness + 5)
         self.root.after(2000, lambda: self.return_to_state("idle"))
         self.is_thinking = False
 
@@ -1299,11 +1291,7 @@ class DesktopPet:
         if current_time - self.last_click_time < 300:
             self.click_count += 1
             if self.click_count >= 2:
-                self.state = "happy"
-                self.happiness = min(100, self.happiness + 20)
-                self.frame = 0
-                self.target_x = None
-                self.root.after(1500, lambda: self.return_to_state("idle"))
+                self.show_chat_dialog()
                 self.click_count = 0
         else:
             self.click_count = 1
@@ -1347,7 +1335,6 @@ class DesktopPet:
             self.velocity_x = self.drag_data["vel_x"] * scale
             self.velocity_y = self.drag_data["vel_y"] * scale
         self.drag_data["dragging"] = False
-        self.happiness = min(100, self.happiness + 5)
 
     def on_mouse_enter(self, event):
         if not self.drag_data["dragging"] and self.state == "idle":
@@ -1374,16 +1361,8 @@ class DesktopPet:
             menu.add_command(label="🏃 Run", command=self.cmd_run)
             menu.add_command(label="🦘 Jump", command=self.cmd_jump)
             menu.add_command(label="🪑 Sit", command=self.cmd_sit)
-            menu.add_command(label="🍪 Feed", command=self.cmd_feed)
             menu.add_command(label="❤️  Pet", command=self.cmd_pet)
-            menu.add_separator()
             menu.add_command(label="😴 Sleep", command=self.cmd_sleep)
-            menu.add_separator()
-            menu.add_command(label=f"❤️  Happiness: {int(self.happiness)}%", state="disabled")
-            menu.add_command(label=f"⚡ Energy: {int(self.energy)}%", state="disabled")
-            menu.add_separator()
-            menu.add_command(label=f"🖥️  Screen: {self.screen_width}x{self.screen_height}", state="disabled")
-            menu.add_command(label="🔄 Refresh Monitors", command=self.update_screen_bounds)
             menu.add_separator()
             menu.add_command(label="💡 Throw EXTREMELY hard to explode!", state="disabled")
             menu.add_separator()
@@ -1428,21 +1407,10 @@ class DesktopPet:
         self.target_x = None
         self.velocity_x = 0
 
-    def cmd_feed(self):
-        self.state = "eat"
-        self.frame = 0
-        self.target_x = None
-        self.velocity_x = 0
-        self.hunger = max(0, self.hunger - 30)
-        self.happiness = min(100, self.happiness + 15)
-        self.energy = min(100, self.energy + 20)
-        self.root.after(2000, lambda: self.return_to_state("idle"))
-
     def cmd_pet(self):
         self.state = "happy"
         self.frame = 0
         self.target_x = None
-        self.happiness = min(100, self.happiness + 25)
         self.root.after(2000, lambda: self.return_to_state("idle"))
 
     def cmd_sleep(self):
@@ -1450,7 +1418,6 @@ class DesktopPet:
         self.frame = 0
         self.target_x = None
         self.velocity_x = 0
-        self.energy = min(100, self.energy + 50)
 
     def handle_ai_command(self, cmd: dict) -> str:
         name = cmd.get('command') or ''
@@ -1465,8 +1432,6 @@ class DesktopPet:
                 self.cmd_jump(); return 'Jumped.'
             if name_l in ('sit', 'cmd_sit'):
                 self.cmd_sit(); return 'Sitting.'
-            if name_l in ('eat', 'cmd_feed', 'feed'):
-                self.cmd_feed(); return 'Eating.'
             if name_l in ('pet', 'cmd_pet'):
                 self.cmd_pet(); return 'Petted.'
             if name_l in ('sleep', 'cmd_sleep'):

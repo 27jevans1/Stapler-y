@@ -130,16 +130,7 @@ def get_response(
                 except Exception:
                     pass
 
-            if not screen_context:
-                # Save screenshot so the user can inspect it manually
-                try:
-                    base_dir = os.path.dirname(__file__)
-                    shot_path = os.path.join(base_dir, "brain", "last_screenshot.png")
-                    os.makedirs(os.path.dirname(shot_path), exist_ok=True)
-                    screen_image.save(shot_path)
-                    screen_context = f"[Screenshot saved to {shot_path}]"
-                except Exception:
-                    pass
+
         except Exception:
             pass
 
