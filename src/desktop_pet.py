@@ -1,26 +1,12 @@
 import tkinter as tk
-from tkinter import Menu, messagebox
+from tkinter import Menu
 import random
 import math
 import os
-import threading
 import time
 from PIL import Image, ImageDraw, ImageTk, ImageOps
-try:
-    from PIL import ImageGrab
-except Exception:
-    ImageGrab = None
-try:
-    import mss
-except Exception:
-    mss = None
 
-from ai import get_response
-from history import (
-    load_history as _load_history,
-    save_history as _save_history,
-    parse_ai_commands,
-)
+from chat_win import ChatWindow
 
 
 class DesktopPet:
@@ -41,31 +27,23 @@ class DesktopPet:
         self.state = "idle"
         self.frame = 0
         self.direction = 1
-        self.on_ground = False
         self.is_dead = False
         self.particles = []
         self.death_timer = 0
         
         # AI Chat
-        self.chat_window = None
+        self.chat = ChatWindow(self)
         self.is_thinking = False
         self.last_response = ""
 
-        # Screen-context settings
-        # Whether the AI is allowed to see the screen at all
-        self._screen_context_enabled = False
-        # Which monitor index to capture for the AI (None = stored virtual bounds)
-        # Kept in sync with the Screen Viewer monitor dropdown
-        self._ai_monitor_index = None
-        
-        # Movement targets
+        # Movement targets (2D)
         self.target_x = None
         self.target_y = None
         self.patrol_timer = 0
         
         # Physics
-        self.gravity = 0.8
-        self.friction = 0.93  # Very high friction - slows down quickly
+        self.max_speed = 3.5
+        self.friction = 0.88  # Friction for top-down deceleration
         
         # Canvas
         self.canvas = tk.Canvas(
@@ -101,9 +79,8 @@ class DesktopPet:
         self.bind_events()
         
         # Keyboard shortcuts
-        self.root.bind('<space>', lambda e: self.show_chat_dialog())
-        self.root.bind('<c>', lambda e: self.show_chat_dialog())
-        
+        self.root.bind('<space>', lambda e: self.chat.show_chat_dialog())
+
         # Screen bounds - get virtual screen size for multi-monitor support
         self.update_screen_bounds()
         
@@ -235,8 +212,6 @@ class DesktopPet:
             "walk": self.create_walk_sprites(),
             "run": self.create_run_sprites(),
             "sleep": self.create_sleep_sprites(),
-            "jump": self.create_jump_sprites(),
-            "fall": self.create_fall_sprites(),
             "happy": self.create_happy_sprites(),
             "eat": self.create_eat_sprites(),
             "sit": self.create_sit_sprites(),
@@ -401,43 +376,6 @@ class DesktopPet:
                     draw.line([x + 6, y, x, y + 6], fill=color, width=2)
                     draw.line([x, y + 6, x + 6, y + 6], fill=color, width=2)
             draw.ellipse([25, 100, 100, 106], fill='#00000020')
-            frames.append(img)
-        return frames
-    
-    def create_jump_sprites(self):
-        frames = []
-        jump_phases = [0, -15, -25, -20, -10, 0]
-        for i, jump_y in enumerate(jump_phases):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
-            draw = ImageDraw.Draw(img)
-            center = self.pet_size // 2
-            base_y = 60 + jump_y
-            top_angle = 10 if jump_y < -10 else 3
-            expression = "excited" if jump_y < -10 else "normal"
-            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, expression)
-            if i <= 1:
-                draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 40], fill='#606060', outline='#303030', width=1)
-                draw.rectangle([center + 30, base_y + 35, center + 35, base_y + 40], fill='#606060', outline='#303030', width=1)
-            else:
-                draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 45], fill='#606060', outline='#303030', width=1)
-                draw.rectangle([center + 30, base_y + 35, center + 35, base_y + 45], fill='#606060', outline='#303030', width=1)
-            shadow_size = 40 - abs(jump_y) // 2
-            draw.ellipse([center - shadow_size, 95, center + shadow_size, 101], fill='#00000020')
-            frames.append(img)
-        return frames
-    
-    def create_fall_sprites(self):
-        frames = []
-        for i in range(2):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
-            draw = ImageDraw.Draw(img)
-            center = self.pet_size // 2
-            base_y = 55
-            top_angle = 15 if i == 0 else 12
-            self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
-            wobble = 3 if i == 0 else -3
-            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 48], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30 + wobble, base_y + 35, center + 35 + wobble, base_y + 48], fill='#606060', outline='#303030', width=1)
             frames.append(img)
         return frames
     
@@ -663,59 +601,48 @@ class DesktopPet:
         screen_top = getattr(self, 'screen_top', 0)
         screen_w = self.screen_width
         screen_h = self.screen_height
+        
         if self.is_dead:
             self.update_position()
             self.root.after(16, self.update_physics)
             return
+        
+        # Stop movement while dragging
         if self.drag_data["dragging"]:
             self.velocity_x = 0
             self.velocity_y = 0
             self.root.after(16, self.update_physics)
             return
-        if not self.on_ground and self.state not in ["sleep", "sit"]:
-            self.velocity_y += self.gravity
+        
+        # Apply friction
         self.velocity_x *= self.friction
+        self.velocity_y *= self.friction
+        
+        # Update position
         self.x += self.velocity_x
         self.y += self.velocity_y
-        impact_speed = math.sqrt(self.velocity_x**2 + self.velocity_y**2)
-        death_threshold = 50.0
-        ground_y = screen_top + screen_h - self.pet_size - 40
-        if self.y >= ground_y:
-            if impact_speed > death_threshold:
-                self.trigger_death()
-            else:
-                self.y = ground_y
-                self.velocity_y = 0
-                self.on_ground = True
-                if self.state in ["jump", "fall"]:
-                    self.state = "idle"
-                    self.frame = 0
-        else:
-            self.on_ground = False
-            if self.state not in ["jump", "sleep", "sit", "eat", "happy", "explode"] and self.velocity_y > 2:
-                self.state = "fall"
+        
+        # Screen bounds (top-down, entire screen is walkable)
         left_bound = screen_left
         right_bound = screen_left + screen_w - self.pet_size
+        top_bound = screen_top
+        bottom_bound = screen_top + screen_h - self.pet_size
+        
+        # Bounce off edges
         if self.x < left_bound:
-            if abs(self.velocity_x) > death_threshold:
-                self.trigger_death()
-            else:
-                self.x = left_bound
-                self.velocity_x = abs(self.velocity_x) * 0.5
-                self.direction = 1
+            self.x = left_bound
+            self.velocity_x = abs(self.velocity_x) * 0.3
         elif self.x > right_bound:
-            if abs(self.velocity_x) > death_threshold:
-                self.trigger_death()
-            else:
-                self.x = right_bound
-                self.velocity_x = -abs(self.velocity_x) * 0.5
-                self.direction = -1
-        if self.y < screen_top:
-            if abs(self.velocity_y) > death_threshold:
-                self.trigger_death()
-            else:
-                self.y = 0
-                self.velocity_y = abs(self.velocity_y) * 0.3
+            self.x = right_bound
+            self.velocity_x = -abs(self.velocity_x) * 0.3
+        
+        if self.y < top_bound:
+            self.y = top_bound
+            self.velocity_y = abs(self.velocity_y) * 0.3
+        elif self.y > bottom_bound:
+            self.y = bottom_bound
+            self.velocity_y = -abs(self.velocity_y) * 0.3
+        
         self.update_position()
         self.root.after(16, self.update_physics)
     
@@ -728,46 +655,59 @@ class DesktopPet:
                 self.respawn()
             self.root.after(50, self.ai_loop)
             return
+        
         self.patrol_timer += 1
-        if not self.drag_data["dragging"] and self.state not in ["jump", "happy", "eat", "thinking"]:
+        if not self.drag_data["dragging"] and self.state not in ["happy", "eat", "thinking"]:
             if self.patrol_timer > 100 and random.random() < 0.02:
                 self.patrol_timer = 0
                 action = random.choices(
-                    ["walk", "run", "idle", "sleep", "sit", "jump"],
-                    weights=[25, 10, 30, 10, 15, 10]
+                    ["walk", "run", "idle", "sleep", "sit"],
+                    weights=[25, 10, 30, 10, 15]
                 )[0]
                 if action in ["walk", "run"]:
                     self.state = action
                     left = getattr(self, 'screen_left', 0)
-                    low = left + 50
-                    high = left + max(100, self.screen_width - self.pet_size - 50)
-                    if low >= high:
-                        low = left
-                        high = left + max(100, self.screen_width - self.pet_size)
-                    self.target_x = random.randint(int(low), int(high))
+                    top = getattr(self, 'screen_top', 0)
+                    x_low = left + 50
+                    x_high = left + max(100, self.screen_width - self.pet_size - 50)
+                    y_low = top + 50
+                    y_high = top + max(100, self.screen_height - self.pet_size - 50)
+                    if x_low >= x_high:
+                        x_low = left
+                        x_high = left + max(100, self.screen_width - self.pet_size)
+                    if y_low >= y_high:
+                        y_low = top
+                        y_high = top + max(100, self.screen_height - self.pet_size)
+                    self.target_x = random.randint(int(x_low), int(x_high))
+                    self.target_y = random.randint(int(y_low), int(y_high))
                     self.frame = 0
-                elif action == "jump":
-                    if self.on_ground:
-                        self.state = "jump"
-                        self.velocity_y = -15
-                        self.velocity_x = random.choice([-3, -2, 0, 2, 3])
-                        self.frame = 0
-                        self.root.after(600, lambda: self.return_to_state("idle"))
                 elif action in ["idle", "sleep", "sit"]:
                     self.state = action
                     self.target_x = None
+                    self.target_y = None
                     self.frame = 0
-            if self.target_x is not None and self.state in ["walk", "run"]:
+            
+            # Move towards target
+            if self.target_x is not None and self.target_y is not None and self.state in ["walk", "run"]:
                 dx = self.target_x - self.x
-                if abs(dx) > 10:
-                    self.direction = 1 if dx > 0 else -1
+                dy = self.target_y - self.y
+                distance = math.sqrt(dx**2 + dy**2)
+                
+                if distance > 10:
+                    # Normalize direction and apply speed
                     speed = 3.5 if self.state == "run" else 1.8
-                    self.velocity_x = speed if dx > 0 else -speed
+                    self.velocity_x = (dx / distance) * speed
+                    self.velocity_y = (dy / distance) * speed
+                    # Update direction based on x movement for sprite flipping
+                    self.direction = 1 if dx >= 0 else -1
                 else:
                     self.target_x = None
+                    self.target_y = None
                     self.state = "idle"
                     self.velocity_x = 0
+                    self.velocity_y = 0
                     self.frame = 0
+        
         self.root.after(50, self.ai_loop)
     
     def trigger_death(self):
@@ -820,470 +760,6 @@ class DesktopPet:
         self.update_screen_bounds()
         self.root.after(30000, self.refresh_screen_bounds_periodically)
 
-    # --- History persistence helpers ---
-
-    def load_history(self) -> list:
-        return _load_history()
-
-    def save_history(self) -> None:
-        _save_history(getattr(self, '_history', []))
-
-    def append_history(self, sender: str, message: str) -> None:
-        """Append to the in-memory cache and persist to disk."""
-        if not hasattr(self, '_history') or self._history is None:
-            self._history = _load_history()
-        from history import append_history as _append
-        _append(sender, message, self._history)
-
-    # --- Screen viewing helpers ---
-
-    def capture_screen(self, monitor_index=None):
-        try:
-            if mss:
-                with mss.mss() as sct:
-                    if monitor_index is not None:
-                        monitors = sct.monitors
-                        idx = max(0, min(monitor_index, len(monitors) - 1))
-                        monitor = monitors[idx]
-                    else:
-                        left = getattr(self, 'screen_left', None)
-                        top  = getattr(self, 'screen_top',  None)
-                        w    = getattr(self, 'screen_width', None)
-                        h    = getattr(self, 'screen_height', None)
-                        if None not in (left, top, w, h):
-                            monitor = {'left': int(left), 'top': int(top),
-                                       'width': int(w), 'height': int(h)}
-                        else:
-                            monitor = sct.monitors[0]
-                    sct_img = sct.grab(monitor)
-                    return Image.frombytes('RGB', sct_img.size, sct_img.rgb)
-            if ImageGrab:
-                left = getattr(self, 'screen_left', None)
-                top  = getattr(self, 'screen_top',  None)
-                w    = getattr(self, 'screen_width', None)
-                h    = getattr(self, 'screen_height', None)
-                if None not in (left, top, w, h):
-                    return ImageGrab.grab(bbox=(int(left), int(top), int(left + w), int(top + h)))
-                return ImageGrab.grab()
-            return None
-        except Exception as e:
-            print(f"Failed to capture screen: {e}")
-            return None
-
-    def get_monitor_list(self):
-        if mss:
-            try:
-                with mss.mss() as sct:
-                    result = []
-                    for i, m in enumerate(sct.monitors):
-                        if i == 0:
-                            label = f"All Monitors  ({m['width']}×{m['height']})"
-                        else:
-                            label = f"Monitor {i}  ({m['width']}×{m['height']})"
-                        result.append((label, i))
-                    return result
-            except Exception:
-                pass
-        return [("Primary Screen", None)]
-
-    # ── Screen viewer ─────────────────────────────────────────────────────────
-
-    def show_screen_view(self):
-        sv = getattr(self, '_sv', None)
-        if sv and sv.get('win') and sv['win'].winfo_exists():
-            sv['win'].lift()
-            self._sv_capture()
-            return
-
-        win = tk.Toplevel(self.root)
-        win.title("Screen View 🖥️")
-        win.geometry("900x620")
-        win.configure(bg='#1E1E1E')
-
-        monitors = self.get_monitor_list()
-        first_idx = monitors[0][1] if monitors else None
-        sv = {
-            'win': win, 'monitor_idx': first_idx, 'auto': False,
-            'auto_job': None, 'last_img': None, 'photo': None,
-        }
-        self._sv = sv
-        # Default AI capture target to whatever the viewer will show first
-        self._ai_monitor_index = first_idx
-
-        toolbar = tk.Frame(win, bg='#2D2D2D', pady=5)
-        toolbar.pack(fill=tk.X, side=tk.TOP)
-
-        def _tbtn(text, cmd):
-            b = tk.Button(toolbar, text=text, command=cmd,
-                          bg='#3D3D3D', fg='#FFFFFF',
-                          activebackground='#555555', activeforeground='#FFFFFF',
-                          relief=tk.FLAT, font=('Arial', 9), padx=10, pady=3, cursor='hand2')
-            b.pack(side=tk.LEFT, padx=3)
-            return b
-
-        if len(monitors) > 1:
-            tk.Label(toolbar, text="Monitor:", bg='#2D2D2D', fg='#AAAAAA',
-                     font=('Arial', 9)).pack(side=tk.LEFT, padx=(8, 2))
-            mon_labels  = [m[0] for m in monitors]
-            mon_indices = [m[1] for m in monitors]
-            mon_var = tk.StringVar(value=mon_labels[0])
-
-            def _on_monitor_change(*_):
-                idx = mon_labels.index(mon_var.get())
-                sv['monitor_idx'] = mon_indices[idx]
-                # Keep the AI capture target in sync
-                self._ai_monitor_index = mon_indices[idx]
-                self._sv_capture()
-
-            om = tk.OptionMenu(toolbar, mon_var, *mon_labels, command=lambda _: _on_monitor_change())
-            om.config(bg='#3D3D3D', fg='#FFFFFF', activebackground='#555555',
-                      activeforeground='#FFFFFF', relief=tk.FLAT,
-                      font=('Arial', 9), highlightthickness=0, width=28)
-            om['menu'].config(bg='#3D3D3D', fg='#FFFFFF', activebackground='#555555', activeforeground='#FFFFFF')
-            om.pack(side=tk.LEFT, padx=(0, 6))
-            tk.Frame(toolbar, width=1, bg='#555555').pack(side=tk.LEFT, fill=tk.Y, padx=4)
-
-        _tbtn("🔄  Refresh", self._sv_capture)
-
-        auto_var = tk.BooleanVar(value=False)
-        auto_chk = tk.Checkbutton(
-            toolbar, text="⏱  Auto (5s)", variable=auto_var,
-            command=lambda: self._sv_set_auto(auto_var.get()),
-            bg='#2D2D2D', fg='#AAAAAA', selectcolor='#444444',
-            activebackground='#2D2D2D', activeforeground='#FFFFFF',
-            font=('Arial', 9), cursor='hand2')
-        auto_chk.pack(side=tk.LEFT, padx=4)
-
-        _tbtn("💾  Save", self._sv_save)
-
-        tk.Button(toolbar, text="✕  Close", command=win.destroy,
-                  bg='#8B0000', fg='#FFFFFF',
-                  activebackground='#B22222', activeforeground='#FFFFFF',
-                  relief=tk.FLAT, font=('Arial', 9), padx=10, pady=3, cursor='hand2').pack(side=tk.RIGHT, padx=6)
-
-        img_frame = tk.Frame(win, bg='#1E1E1E')
-        img_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(6, 0))
-
-        img_lbl = tk.Label(img_frame, bg='#1E1E1E', text="Capturing…", fg='#666666', font=('Arial', 13))
-        img_lbl.pack(fill=tk.BOTH, expand=True)
-        sv['img_lbl'] = img_lbl
-
-        status = tk.Label(win, text="", bg='#2D2D2D', fg='#777777',
-                          font=('Arial', 8), anchor='w', padx=10, pady=3)
-        status.pack(fill=tk.X, side=tk.BOTTOM)
-        sv['status'] = status
-
-        def _on_close():
-            self._sv_set_auto(False)
-            win.destroy()
-        win.protocol("WM_DELETE_WINDOW", _on_close)
-
-        self._sv_capture()
-
-    def _sv_capture(self):
-        sv = getattr(self, '_sv', None)
-        if not sv or not sv['win'].winfo_exists():
-            return
-        sv['img_lbl'].config(text="Capturing…", image='')
-        sv['status'].config(text="  Capturing screen…")
-        monitor_idx = sv['monitor_idx']
-
-        def worker():
-            img = self.capture_screen(monitor_index=monitor_idx)
-            self.root.after(0, lambda: self._sv_update(img))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _sv_update(self, img):
-        from datetime import datetime
-        sv = getattr(self, '_sv', None)
-        if not sv or not sv['win'].winfo_exists():
-            return
-        if img is None:
-            sv['img_lbl'].config(text="Screen capture failed.", image='')
-            sv['status'].config(text="  Capture failed — is mss or Pillow installed?")
-            return
-        sv['last_img'] = img
-        win = sv['win']
-        win.update_idletasks()
-        max_w = max(200, win.winfo_width()  - 16)
-        max_h = max(150, win.winfo_height() - 80)
-        img_w, img_h = img.size
-        scale = min(1.0, max_w / img_w, max_h / img_h)
-        disp_w, disp_h = int(img_w * scale), int(img_h * scale)
-        try:
-            resample = Image.Resampling.LANCZOS
-        except AttributeError:
-            resample = getattr(Image, 'LANCZOS', Image.BICUBIC)
-        photo = ImageTk.PhotoImage(img.resize((disp_w, disp_h), resample))
-        sv['photo'] = photo
-        sv['img_lbl'].config(image=photo, text='')
-        ts = datetime.now().strftime("%H:%M:%S")
-        sv['status'].config(
-            text=f"  Source: {img_w}×{img_h}  →  displayed at {disp_w}×{disp_h}  ·  Captured at {ts}"
-        )
-
-    def _sv_set_auto(self, enabled: bool):
-        sv = getattr(self, '_sv', None)
-        if not sv:
-            return
-        sv['auto'] = enabled
-        if sv.get('auto_job'):
-            try:
-                self.root.after_cancel(sv['auto_job'])
-            except Exception:
-                pass
-            sv['auto_job'] = None
-        if enabled:
-            self._sv_schedule_auto()
-
-    def _sv_schedule_auto(self):
-        sv = getattr(self, '_sv', None)
-        if not sv or not sv.get('auto'):
-            return
-        if not sv['win'].winfo_exists():
-            sv['auto'] = False
-            return
-
-        def tick():
-            self._sv_capture()
-            self._sv_schedule_auto()
-
-        sv['auto_job'] = self.root.after(5000, tick)
-
-    def _sv_save(self):
-        sv = getattr(self, '_sv', None)
-        if not sv or sv.get('last_img') is None:
-            return
-        try:
-            import datetime as dt
-            base = os.path.dirname(__file__)
-            stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-            path = os.path.join(base, 'brain', f'screenshot_{stamp}.png')
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            sv['last_img'].save(path)
-            sv['status'].config(text=f"  Saved → {path}")
-        except Exception as e:
-            sv['status'].config(text=f"  Save failed: {e}")
-
-    # --- Chat ---
-
-    def show_chat_dialog(self):
-        if self.chat_window and self.chat_window.winfo_exists():
-            self.chat_window.lift()
-            return
-        self.chat_window = tk.Toplevel(self.root)
-        self.chat_window.title("Chat with Stapler-y 📎")
-        self.chat_window.geometry("420x540")
-        self.chat_window.configure(bg='#F0F0F0')
-
-        # ── Toolbar row (screen toggle + viewer button) ───────────────────
-        toolbar = tk.Frame(self.chat_window, bg='#E0E0E0', pady=4)
-        toolbar.pack(fill=tk.X, padx=10, pady=(8, 0))
-
-        # Screen-context toggle — kept in sync with self._screen_context_enabled
-        screen_var = tk.BooleanVar(value=self._screen_context_enabled)
-
-        def _on_screen_toggle():
-            self._screen_context_enabled = screen_var.get()
-            if self._screen_context_enabled:
-                screen_chk.config(fg='#1B5E20', selectcolor='#C8E6C9')
-            else:
-                screen_chk.config(fg='#555555', selectcolor='#E0E0E0')
-
-        screen_chk = tk.Checkbutton(
-            toolbar,
-            text="🖥️  Let AI see screen",
-            variable=screen_var,
-            command=_on_screen_toggle,
-            bg='#E0E0E0',
-            fg='#555555',
-            selectcolor='#E0E0E0',
-            activebackground='#E0E0E0',
-            font=('Arial', 9),
-            cursor='hand2',
-        )
-        screen_chk.pack(side=tk.LEFT, padx=(4, 0))
-
-        # Apply initial colour so a pre-enabled toggle looks right on re-open
-        if self._screen_context_enabled:
-            screen_chk.config(fg='#1B5E20', selectcolor='#C8E6C9')
-
-        viewer_btn = tk.Button(
-            toolbar,
-            text="📺  Open Viewer",
-            command=self.show_screen_view,
-            bg='#3D3D3D', fg='#FFFFFF',
-            activebackground='#555555', activeforeground='#FFFFFF',
-            relief=tk.FLAT, font=('Arial', 9), padx=8, pady=2, cursor='hand2',
-        )
-        viewer_btn.pack(side=tk.RIGHT, padx=(0, 4))
-
-        # ── Chat history display ──────────────────────────────────────────
-        history_frame = tk.Frame(self.chat_window, bg='#F0F0F0')
-        history_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(6, 0))
-
-        self.chat_history = tk.Text(
-            history_frame, wrap=tk.WORD, bg='#FFFFFF',
-            font=('Arial', 10), state=tk.DISABLED,
-            relief=tk.FLAT, padx=10, pady=10
-        )
-        self.chat_history.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Load persisted history
-        self._history = _load_history()
-        for entry in self._history:
-            sender = entry.get('sender', 'You')
-            message = entry.get('message', '')
-            ts = entry.get('timestamp')
-            color = '#2E7D32' if sender == 'You' else '#4A90E2'
-            self.add_chat_message(sender, message, color=color, timestamp=ts, save=False)
-
-        scrollbar = tk.Scrollbar(history_frame, command=self.chat_history.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.chat_history.config(yscrollcommand=scrollbar.set)
-
-        # ── Input row ─────────────────────────────────────────────────────
-        input_frame = tk.Frame(self.chat_window, bg='#F0F0F0')
-        input_frame.pack(fill=tk.X, padx=10, pady=(4, 10))
-
-        self.question_entry = tk.Entry(input_frame, font=('Arial', 11), relief=tk.FLAT, bg='#FFFFFF')
-        self.question_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, ipady=5)
-        self.question_entry.bind('<Return>', lambda e: self.ask_question())
-
-        send_btn = tk.Button(
-            input_frame, text="Ask", command=self.ask_question,
-            bg='#4A90E2', fg='white', font=('Arial', 10, 'bold'),
-            relief=tk.FLAT, padx=15, cursor='hand2'
-        )
-        send_btn.pack(side=tk.RIGHT, padx=(5, 0))
-
-        clear_btn = tk.Button(
-            input_frame, text="Clear", command=self.clear_history_prompt,
-            bg='#E53935', fg='white', font=('Arial', 10),
-            relief=tk.FLAT, padx=10, cursor='hand2'
-        )
-        clear_btn.pack(side=tk.RIGHT, padx=(5, 0))
-
-        self.question_entry.focus()
-
-    def add_chat_message(self, sender, message, color="#000000", timestamp=None, save=True):
-        if not hasattr(self, 'chat_history'):
-            return
-        from datetime import datetime
-        if timestamp:
-            try:
-                ts_dt = datetime.fromisoformat(timestamp)
-                timestamp_display = ts_dt.strftime("%H:%M")
-            except Exception:
-                timestamp_display = str(timestamp)
-        else:
-            timestamp_display = datetime.now().strftime("%H:%M")
-
-        self.chat_history.config(state=tk.NORMAL)
-        self.chat_history.insert(tk.END, f"\n{sender} ", f"sender_{sender}")
-        self.chat_history.tag_config(f"sender_{sender}", foreground=color, font=('Arial', 10, 'bold'))
-        self.chat_history.insert(tk.END, f"({timestamp_display})\n", "timestamp")
-        self.chat_history.tag_config("timestamp", foreground="#888888", font=('Arial', 8))
-        self.chat_history.insert(tk.END, f"{message}\n", "message")
-        self.chat_history.tag_config("message", font=('Arial', 10))
-        self.chat_history.config(state=tk.DISABLED)
-        self.chat_history.see(tk.END)
-
-        if save:
-            self.append_history(sender, message)
-
-    def clear_history_prompt(self):
-        if messagebox.askyesno("Clear History", "Are you sure you want to clear the chat history? This cannot be undone."):
-            self.clear_history()
-
-    def clear_history(self):
-        try:
-            self._history = []
-            _save_history([])
-        except Exception as e:
-            print(f"Failed to clear history: {e}")
-        if hasattr(self, 'chat_history'):
-            try:
-                self.chat_history.config(state=tk.NORMAL)
-                self.chat_history.delete('1.0', tk.END)
-                self.chat_history.config(state=tk.DISABLED)
-            except Exception:
-                pass
-
-    # --- AI ---
-
-    def ask_question(self):
-        if not hasattr(self, 'question_entry'):
-            return
-        question = self.question_entry.get().strip()
-        if not question:
-            return
-        self.question_entry.delete(0, tk.END)
-        self.add_chat_message("You", question, "#2E7D32")
-
-        raw = question.strip()
-        is_direct_cmd = (
-            (raw.startswith('{') and 'command' in raw)
-            or raw.upper().startswith('COMMAND:')
-            or raw.startswith('/')
-            or raw.startswith('/cmd')
-        )
-
-        if is_direct_cmd:
-            try:
-                cmds = parse_ai_commands(question)
-                if not cmds:
-                    self.add_chat_message('System', 'No valid command found in input.', '#888888')
-                    return
-                for cmd in cmds:
-                    result = self.handle_ai_command(cmd)
-                    self.add_chat_message('System', result, '#888888')
-            except Exception as e:
-                self.add_chat_message('System', f'Error running command: {e}', '#888888')
-            return
-
-        self.state = "thinking"
-        self.is_thinking = True
-        self.frame = 0
-        self.root.after(100, lambda: self.get_ai_response(question))
-
-    def get_ai_response(self, question):
-        """Kick off the AI call on a background thread."""
-        screen_img = None
-        if self._screen_context_enabled:
-            try:
-                screen_img = self.capture_screen(monitor_index=self._ai_monitor_index)
-            except Exception:
-                screen_img = None
-
-        # Snapshot history now (on main thread) so the worker has a stable copy
-        history_snapshot = list(getattr(self, '_history', []))
-
-        def worker():
-            try:
-                answer = get_response(question, history=history_snapshot, screen_image=screen_img)
-            except Exception as e:
-                answer = f"Oops, something went wrong 📎 ({e})"
-            self.root.after(0, lambda: self._on_ai_response(answer))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _on_ai_response(self, answer):
-        self.last_response = answer
-        self.add_chat_message("Stapler-y", answer, "#4A90E2")
-        try:
-            commands = parse_ai_commands(answer)
-            for cmd in commands:
-                result = self.handle_ai_command(cmd)
-                if result:
-                    self.add_chat_message("System", result, "#888888")
-        except Exception as e:
-            print(f"Error handling AI commands: {e}")
-        self.state = "happy"
-        self.root.after(2000, lambda: self.return_to_state("idle"))
-        self.is_thinking = False
-
     def on_click(self, event):
         if self.is_dead:
             return
@@ -1291,7 +767,7 @@ class DesktopPet:
         if current_time - self.last_click_time < 300:
             self.click_count += 1
             if self.click_count >= 2:
-                self.show_chat_dialog()
+                self.chat.show_chat_dialog()
                 self.click_count = 0
         else:
             self.click_count = 1
@@ -1345,7 +821,7 @@ class DesktopPet:
     def on_mouse_leave(self, event):
         pass
 
-    def show_menu(self, event):
+    def show_menu(self, event: tk.Event):
         menu = Menu(self.root, tearoff=0)
         if self.is_dead:
             menu.add_command(label="💀 Dead!", state="disabled")
@@ -1355,16 +831,13 @@ class DesktopPet:
             menu.add_separator()
             menu.add_command(label="❌ Quit", command=self.quit_app)
         else:
-            menu.add_command(label="💬 Chat with Me!", command=self.show_chat_dialog)
+            menu.add_command(label="💬 Chat with Me!", command=self.chat.show_chat_dialog)
             menu.add_separator()
             menu.add_command(label="🚶 Walk", command=self.cmd_walk)
             menu.add_command(label="🏃 Run", command=self.cmd_run)
-            menu.add_command(label="🦘 Jump", command=self.cmd_jump)
-            menu.add_command(label="🪑 Sit", command=self.cmd_sit)
-            menu.add_command(label="❤️  Pet", command=self.cmd_pet)
+            menu.add_command(label="🧎 Sit", command=self.cmd_sit)
+            menu.add_command(label="❤️ Pet", command=self.cmd_pet)
             menu.add_command(label="😴 Sleep", command=self.cmd_sleep)
-            menu.add_separator()
-            menu.add_command(label="💡 Throw EXTREMELY hard to explode!", state="disabled")
             menu.add_separator()
             menu.add_command(label="❌ Quit", command=self.quit_app)
         try:
@@ -1376,36 +849,45 @@ class DesktopPet:
         self.state = "walk"
         self.frame = 0
         left = getattr(self, 'screen_left', 0)
-        low = left + 50
-        high = left + max(100, self.screen_width - self.pet_size - 50)
-        if low >= high:
-            low = left
-            high = left + max(100, self.screen_width - self.pet_size)
-        self.target_x = random.randint(int(low), int(high))
+        top = getattr(self, 'screen_top', 0)
+        x_low = left + 50
+        x_high = left + max(100, self.screen_width - self.pet_size - 50)
+        y_low = top + 50
+        y_high = top + max(100, self.screen_height - self.pet_size - 50)
+        if x_low >= x_high:
+            x_low = left
+            x_high = left + max(100, self.screen_width - self.pet_size)
+        if y_low >= y_high:
+            y_low = top
+            y_high = top + max(100, self.screen_height - self.pet_size)
+        self.target_x = random.randint(int(x_low), int(x_high))
+        self.target_y = random.randint(int(y_low), int(y_high))
 
     def cmd_run(self):
         self.state = "run"
         self.frame = 0
         left = getattr(self, 'screen_left', 0)
-        low = left + 50
-        high = left + max(100, self.screen_width - self.pet_size - 50)
-        if low >= high:
-            low = left
-            high = left + max(100, self.screen_width - self.pet_size)
-        self.target_x = random.randint(int(low), int(high))
-
-    def cmd_jump(self):
-        if self.on_ground:
-            self.state = "jump"
-            self.velocity_y = -18
-            self.velocity_x = random.choice([-4, 0, 4])
-            self.frame = 0
+        top = getattr(self, 'screen_top', 0)
+        x_low = left + 50
+        x_high = left + max(100, self.screen_width - self.pet_size - 50)
+        y_low = top + 50
+        y_high = top + max(100, self.screen_height - self.pet_size - 50)
+        if x_low >= x_high:
+            x_low = left
+            x_high = left + max(100, self.screen_width - self.pet_size)
+        if y_low >= y_high:
+            y_low = top
+            y_high = top + max(100, self.screen_height - self.pet_size)
+        self.target_x = random.randint(int(x_low), int(x_high))
+        self.target_y = random.randint(int(y_low), int(y_high))
 
     def cmd_sit(self):
         self.state = "sit"
         self.frame = 0
         self.target_x = None
+        self.target_y = None
         self.velocity_x = 0
+        self.velocity_y = 0
 
     def cmd_pet(self):
         self.state = "happy"
@@ -1417,7 +899,9 @@ class DesktopPet:
         self.state = "sleep"
         self.frame = 0
         self.target_x = None
+        self.target_y = None
         self.velocity_x = 0
+        self.velocity_y = 0
 
     def handle_ai_command(self, cmd: dict) -> str:
         name = cmd.get('command') or ''
@@ -1428,8 +912,6 @@ class DesktopPet:
                 self.cmd_walk(); return 'Started walking.'
             if name_l in ('run', 'cmd_run'):
                 self.cmd_run(); return 'Started running.'
-            if name_l in ('jump', 'cmd_jump'):
-                self.cmd_jump(); return 'Jumped.'
             if name_l in ('sit', 'cmd_sit'):
                 self.cmd_sit(); return 'Sitting.'
             if name_l in ('pet', 'cmd_pet'):
@@ -1457,11 +939,11 @@ class DesktopPet:
                 except Exception:
                     return 'Failed to move: invalid coordinates.'
             if name_l in ('clear_history', 'clear'):
-                self.clear_history(); return 'Cleared history.'
+                self.chat.clear_history(); return 'Cleared history.'
             if name_l in ('view_screen', 'show_screen'):
-                self.show_screen_view(); return 'Opened screen viewer.'
+                self.chat.show_screen_view(); return 'Opened screen viewer.'
             if name_l in ('save_screenshot', 'screenshot'):
-                img = self.capture_screen()
+                img = self.chat.capture_screen()
                 if img:
                     import datetime
                     base = os.path.dirname(__file__)
@@ -1474,7 +956,7 @@ class DesktopPet:
             if name_l in ('say', 'speak', 'message'):
                 text = args.get('text') or args.get('t') or ''
                 if text:
-                    self.add_chat_message('Stapler-y', text, '#4A90E2')
+                    self.chat.add_chat_message('Stapler-y', text, '#4A90E2')
                     return 'Posted message.'
             return f'Unknown command: {name}.'
         except Exception as e:
