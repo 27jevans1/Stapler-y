@@ -50,9 +50,9 @@ class DesktopPet:
             self.root,
             width=self.pet_size,
             height=self.pet_size,
-            bg='white',
+            bg="white",
             highlightthickness=0,
-            cursor='hand2'
+            cursor="hand2"
         )
         self.canvas.pack()
         
@@ -79,7 +79,7 @@ class DesktopPet:
         self.bind_events()
         
         # Keyboard shortcuts
-        self.root.bind('<space>', lambda e: self.chat.show_chat_dialog())
+        self.root.bind("<space>", lambda e: self.chat.show_chat_dialog())
 
         # Screen bounds - get virtual screen size for multi-monitor support
         self.update_screen_bounds()
@@ -102,13 +102,13 @@ class DesktopPet:
         """Configure window properties"""
         # Transparency
         try:
-            self.root.attributes('-transparentcolor', 'white')
+            self.root.attributes("-transparentcolor", "white")
         except:
             pass
         
         # Always on top
         try:
-            self.root.attributes('-topmost', True)
+            self.root.attributes("-topmost", True)
         except:
             pass
         
@@ -117,7 +117,7 @@ class DesktopPet:
         
         # Make window click-through in some areas (platform dependent)
         try:
-            self.root.wm_attributes('-alpha', 0.99)  # Slightly transparent for better rendering
+            self.root.wm_attributes("-alpha", 0.99)  # Slightly transparent for better rendering
         except:
             pass
     
@@ -182,7 +182,7 @@ class DesktopPet:
             # Method 2: For Windows/Linux, estimate based on positioning
             test_x = self.primary_width + 100
             try:
-                self.root.geometry(f'+{test_x}+100')
+                self.root.geometry(f"+{test_x}+100")
                 self.root.update()
                 actual_x = self.root.winfo_x()
                 
@@ -191,7 +191,7 @@ class DesktopPet:
                     self.screen_top = 0
                     self.screen_width = self.primary_width * 2
                     self.screen_height = self.primary_height
-                    self.root.geometry(f'+{self.x}+{self.y}')
+                    self.root.geometry(f"+{self.x}+{self.y}")
                     return
             except:
                 pass
@@ -231,13 +231,13 @@ class DesktopPet:
         draw.rectangle([
             center - base_w, base_y + 20,
             center + base_w, base_y + 35
-        ], fill='#808080', outline='#404040', width=2)
+        ], fill="#808080", outline="#404040", width=2)
         
         # Staple chamber (darker area)
         draw.rectangle([
             center - base_w + 5, base_y + 22,
             center + base_w - 5, base_y + 33
-        ], fill='#505050', outline='#303030', width=1)
+        ], fill="#505050", outline="#303030", width=1)
         
         # Top part of the Stapler-y (the part you press down)
         top_w = int(45 * scale)
@@ -253,35 +253,35 @@ class DesktopPet:
         draw.rectangle([
             center - top_w, base_y + 5 - top_offset_y,
             center + top_w, base_y + 17 - top_offset_y
-        ], fill='#A0A0A0', outline='#606060', width=2)
+        ], fill="#A0A0A0", outline="#606060", width=2)
         
         # Label area (lighter gray)
         draw.rectangle([
             center - top_w + 10, base_y + 8 - top_offset_y,
             center + top_w - 10, base_y + 14 - top_offset_y
-        ], fill='#C0C0C0', outline='#808080', width=1)
+        ], fill="#C0C0C0", outline="#808080", width=1)
         
         # Expression
         if expression == "happy":
             draw.arc([center - 8, base_y + 9 - top_offset_y, center - 2, base_y + 13 - top_offset_y], 
-                    0, 180, fill='#000000', width=2)
+                    0, 180, fill="#000000", width=2)
             draw.arc([center + 2, base_y + 9 - top_offset_y, center + 8, base_y + 13 - top_offset_y], 
-                    0, 180, fill='#000000', width=2)
+                    0, 180, fill="#000000", width=2)
         elif expression == "sleepy":
             draw.line([center - 6, base_y + 11 - top_offset_y, center - 2, base_y + 11 - top_offset_y], 
-                     fill='#000000', width=2)
+                     fill="#000000", width=2)
             draw.line([center + 2, base_y + 11 - top_offset_y, center + 6, base_y + 11 - top_offset_y], 
-                     fill='#000000', width=2)
+                     fill="#000000", width=2)
         elif expression == "excited":
             draw.ellipse([center - 7, base_y + 9 - top_offset_y, center - 3, base_y + 13 - top_offset_y], 
-                        fill='#000000')
+                        fill="#000000")
             draw.ellipse([center + 3, base_y + 9 - top_offset_y, center + 7, base_y + 13 - top_offset_y], 
-                        fill='#000000')
+                        fill="#000000")
         else:  # normal
             draw.ellipse([center - 6, base_y + 10 - top_offset_y, center - 4, base_y + 12 - top_offset_y], 
-                        fill='#000000')
+                        fill="#000000")
             draw.ellipse([center + 4, base_y + 10 - top_offset_y, center + 6, base_y + 12 - top_offset_y], 
-                        fill='#000000')
+                        fill="#000000")
         
         # Metal details/screws
         screw_positions = [
@@ -292,39 +292,39 @@ class DesktopPet:
         ]
         
         for sx, sy in screw_positions:
-            draw.ellipse([sx - 2, sy - 2, sx + 2, sy + 2], fill='#505050', outline='#303030', width=1)
-            draw.line([sx - 1, sy - 1, sx + 1, sy + 1], fill='#606060', width=1)
-            draw.line([sx - 1, sy + 1, sx + 1, sy - 1], fill='#606060', width=1)
+            draw.ellipse([sx - 2, sy - 2, sx + 2, sy + 2], fill="#505050", outline="#303030", width=1)
+            draw.line([sx - 1, sy - 1, sx + 1, sy + 1], fill="#606060", width=1)
+            draw.line([sx - 1, sy + 1, sx + 1, sy - 1], fill="#606060", width=1)
         
         # Spring mechanism
         draw.line([center + base_w - 5, base_y + 20, center + base_w - 5, base_y + 10 - top_offset_y], 
-                 fill='#707070', width=2)
+                 fill="#707070", width=2)
         
         # Front nose/Stapler-y opening
         draw.rectangle([
             center - base_w - 3, base_y + 22,
             center - base_w, base_y + 33
-        ], fill='#606060', outline='#303030', width=1)
+        ], fill="#606060", outline="#303030", width=1)
         
         return base_y
     
     def create_idle_sprites(self):
         frames = []
         for i in range(4):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             top_angle = int(math.sin(i / 4 * math.pi * 2) * 2)
             base_y = 60
             self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
-            draw.ellipse([center - 45, base_y + 36, center + 45, base_y + 42], fill='#00000020')
+            draw.ellipse([center - 45, base_y + 36, center + 45, base_y + 42], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_walk_sprites(self):
         frames = []
         for i in range(6):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             bounce = int(abs(math.sin(i / 6 * math.pi * 2)) * 5)
@@ -332,16 +332,16 @@ class DesktopPet:
             base_y = 60 - bounce
             self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
             leg_offset = 5 if i % 2 == 0 else -5
-            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30, base_y + 35 + leg_offset, center + 35, base_y + 42 + leg_offset], fill='#606060', outline='#303030', width=1)
-            draw.ellipse([center - 45, base_y + 42, center + 45, base_y + 48], fill='#00000020')
+            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], fill="#606060", outline="#303030", width=1)
+            draw.rectangle([center + 30, base_y + 35 + leg_offset, center + 35, base_y + 42 + leg_offset], fill="#606060", outline="#303030", width=1)
+            draw.ellipse([center - 45, base_y + 42, center + 45, base_y + 48], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_run_sprites(self):
         frames = []
         for i in range(4):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             bounce = int(abs(math.sin(i / 4 * math.pi * 2)) * 8)
@@ -350,115 +350,115 @@ class DesktopPet:
             base_y = 55 - bounce
             self.draw_base_staplery(draw, center + tilt, base_y, top_angle, 1.0, "excited")
             leg_offset = 8 if i % 2 == 0 else -8
-            draw.rectangle([center - 35 + tilt, base_y + 35, center - 30 + tilt, base_y + 45 + leg_offset], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30 + tilt, base_y + 35 - leg_offset, center + 35 + tilt, base_y + 45], fill='#606060', outline='#303030', width=1)
+            draw.rectangle([center - 35 + tilt, base_y + 35, center - 30 + tilt, base_y + 45 + leg_offset], fill="#606060", outline="#303030", width=1)
+            draw.rectangle([center + 30 + tilt, base_y + 35 - leg_offset, center + 35 + tilt, base_y + 45], fill="#606060", outline="#303030", width=1)
             for j in range(3):
-                draw.line([center - 60, base_y + 15 + j * 5, center - 50, base_y + 15 + j * 5], fill='#80808080', width=2)
-            draw.ellipse([center - 45 + tilt, base_y + 45, center + 45 + tilt, base_y + 51], fill='#00000020')
+                draw.line([center - 60, base_y + 15 + j * 5, center - 50, base_y + 15 + j * 5], fill="#80808080", width=2)
+            draw.ellipse([center - 45 + tilt, base_y + 45, center + 45 + tilt, base_y + 51], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_sleep_sprites(self):
         frames = []
         for i in range(3):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
-            draw.rectangle([30, 70, 95, 85], fill='#A0A0A0', outline='#606060', width=2)
-            draw.rectangle([35, 72, 90, 83], fill='#C0C0C0', outline='#808080', width=1)
-            draw.line([55, 77, 60, 77], fill='#000000', width=2)
-            draw.line([65, 77, 70, 77], fill='#000000', width=2)
+            draw.rectangle([30, 70, 95, 85], fill="#A0A0A0", outline="#606060", width=2)
+            draw.rectangle([35, 72, 90, 83], fill="#C0C0C0", outline="#808080", width=1)
+            draw.line([55, 77, 60, 77], fill="#000000", width=2)
+            draw.line([65, 77, 70, 77], fill="#000000", width=2)
             if i == 2:
-                alpha_values = ['#666666', '#999999', '#CCCCCC']
+                alpha_values = ["#666666", "#999999", "#CCCCCC"]
                 positions = [(100, 50), (105, 40), (108, 32)]
                 for j, ((x, y), color) in enumerate(zip(positions, alpha_values)):
                     draw.line([x, y, x + 6, y], fill=color, width=2)
                     draw.line([x + 6, y, x, y + 6], fill=color, width=2)
                     draw.line([x, y + 6, x + 6, y + 6], fill=color, width=2)
-            draw.ellipse([25, 100, 100, 106], fill='#00000020')
+            draw.ellipse([25, 100, 100, 106], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_happy_sprites(self):
         frames = []
         for i in range(4):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             base_y = 60
             top_angle = 15 if i % 2 == 0 else 0
             self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "happy")
-            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30, base_y + 35, center + 35, base_y + 42], fill='#606060', outline='#303030', width=1)
+            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], fill="#606060", outline="#303030", width=1)
+            draw.rectangle([center + 30, base_y + 35, center + 35, base_y + 42], fill="#606060", outline="#303030", width=1)
             if i % 2 == 1:
                 heart_positions = [(20, 30), (95, 35)]
                 for hx, hy in heart_positions:
-                    self.draw_heart(draw, hx, hy, 5, '#FF69B4')
+                    self.draw_heart(draw, hx, hy, 5, "#FF69B4")
             if i == 1:
-                draw.rectangle([center - 55, base_y + 28, center - 50, base_y + 32], fill='#C0C0C0', outline='#808080', width=1)
-                draw.line([center - 55, base_y + 28, center - 55, base_y + 25], fill='#C0C0C0', width=1)
-                draw.line([center - 50, base_y + 28, center - 50, base_y + 25], fill='#C0C0C0', width=1)
-            draw.ellipse([center - 45, base_y + 42, center + 45, base_y + 48], fill='#00000020')
+                draw.rectangle([center - 55, base_y + 28, center - 50, base_y + 32], fill="#C0C0C0", outline="#808080", width=1)
+                draw.line([center - 55, base_y + 28, center - 55, base_y + 25], fill="#C0C0C0", width=1)
+                draw.line([center - 50, base_y + 28, center - 50, base_y + 25], fill="#C0C0C0", width=1)
+            draw.ellipse([center - 45, base_y + 42, center + 45, base_y + 48], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_eat_sprites(self):
         frames = []
         for i in range(4):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             base_y = 65
             top_angle = 10 if i % 2 == 0 else 5
             self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "happy" if i % 2 == 0 else "normal")
-            draw.rectangle([center - 35, base_y + 30, center - 30, base_y + 40], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30, base_y + 30, center + 35, base_y + 40], fill='#606060', outline='#303030', width=1)
+            draw.rectangle([center - 35, base_y + 30, center - 30, base_y + 40], fill="#606060", outline="#303030", width=1)
+            draw.rectangle([center + 30, base_y + 30, center + 35, base_y + 40], fill="#606060", outline="#303030", width=1)
             if i < 3:
                 paper_x = center - 60 + i * 5
                 paper_y = base_y + 20
-                draw.rectangle([paper_x, paper_y, paper_x + 20, paper_y + 15], fill='#FFFFFF', outline='#CCCCCC', width=1)
-                draw.line([paper_x + 5, paper_y + 5, paper_x + 5, paper_y + 10], fill='#C0C0C0', width=2)
-                draw.line([paper_x + 15, paper_y + 5, paper_x + 15, paper_y + 10], fill='#C0C0C0', width=2)
-            draw.ellipse([center - 45, base_y + 40, center + 45, base_y + 46], fill='#00000020')
+                draw.rectangle([paper_x, paper_y, paper_x + 20, paper_y + 15], fill="#FFFFFF", outline="#CCCCCC", width=1)
+                draw.line([paper_x + 5, paper_y + 5, paper_x + 5, paper_y + 10], fill="#C0C0C0", width=2)
+                draw.line([paper_x + 15, paper_y + 5, paper_x + 15, paper_y + 10], fill="#C0C0C0", width=2)
+            draw.ellipse([center - 45, base_y + 40, center + 45, base_y + 46], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_sit_sprites(self):
         frames = []
         for i in range(2):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             base_y = 70
             top_angle = 3 + i
             self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
-            draw.rectangle([center - 35, base_y + 30, center - 30, base_y + 38], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30, base_y + 30, center + 35, base_y + 38], fill='#606060', outline='#303030', width=1)
-            draw.ellipse([center - 50, base_y + 38, center + 50, base_y + 44], fill='#00000020')
+            draw.rectangle([center - 35, base_y + 30, center - 30, base_y + 38], fill="#606060", outline="#303030", width=1)
+            draw.rectangle([center + 30, base_y + 30, center + 35, base_y + 38], fill="#606060", outline="#303030", width=1)
+            draw.ellipse([center - 50, base_y + 38, center + 50, base_y + 44], fill="#00000020")
             frames.append(img)
         return frames
     
     def create_thinking_sprites(self):
         frames = []
         for i in range(4):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             base_y = 60
             top_angle = 5
             self.draw_base_staplery(draw, center, base_y, top_angle, 1.0, "normal")
-            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], fill='#606060', outline='#303030', width=1)
-            draw.rectangle([center + 30, base_y + 35, center + 35, base_y + 42], fill='#606060', outline='#303030', width=1)
+            draw.rectangle([center - 35, base_y + 35, center - 30, base_y + 42], fill="#606060", outline="#303030", width=1)
+            draw.rectangle([center + 30, base_y + 35, center + 35, base_y + 42], fill="#606060", outline="#303030", width=1)
             bubble_y = 25
-            draw.ellipse([center - 30, bubble_y, center + 30, bubble_y + 25], fill='#FFFFFF', outline='#888888', width=2)
-            draw.ellipse([center - 15, bubble_y + 22, center - 10, bubble_y + 27], fill='#FFFFFF', outline='#888888', width=1)
-            draw.ellipse([center - 8, bubble_y + 28, center - 5, bubble_y + 31], fill='#FFFFFF', outline='#888888', width=1)
+            draw.ellipse([center - 30, bubble_y, center + 30, bubble_y + 25], fill="#FFFFFF", outline="#888888", width=2)
+            draw.ellipse([center - 15, bubble_y + 22, center - 10, bubble_y + 27], fill="#FFFFFF", outline="#888888", width=1)
+            draw.ellipse([center - 8, bubble_y + 28, center - 5, bubble_y + 31], fill="#FFFFFF", outline="#888888", width=1)
             dot_y = bubble_y + 12
             dot_positions = [center - 12, center, center + 12]
             for j, dot_x in enumerate(dot_positions):
                 offset = int(math.sin((i + j) / 4 * math.pi * 2) * 3)
-                draw.ellipse([dot_x - 3, dot_y - offset, dot_x + 3, dot_y + 6 - offset], fill='#4A90E2')
-            draw.ellipse([center - 45, base_y + 42, center + 45, base_y + 48], fill='#00000020')
+                draw.ellipse([dot_x - 3, dot_y - offset, dot_x + 3, dot_y + 6 - offset], fill="#4A90E2")
+            draw.ellipse([center - 45, base_y + 42, center + 45, base_y + 48], fill="#00000020")
             frames.append(img)
         return frames
     
@@ -466,11 +466,11 @@ class DesktopPet:
         frames = []
         center = self.pet_size // 2
         for i in range(8):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             if i < 6:
                 radius = (i + 1) * 12
-                colors = ['#FF4500', '#FF6347', '#FFA500', '#FFD700', '#FFFF00']
+                colors = ["#FF4500", "#FF6347", "#FFA500", "#FFD700", "#FFFF00"]
                 for j, color in enumerate(colors):
                     r = radius - j * 8
                     if r > 0:
@@ -482,43 +482,43 @@ class DesktopPet:
                     y1 = center + math.sin(rad) * 10
                     x2 = center + math.cos(rad) * length
                     y2 = center + math.sin(rad) * length
-                    draw.line([x1, y1, x2, y2], fill='#FF4500', width=2)
+                    draw.line([x1, y1, x2, y2], fill="#FF4500", width=2)
                 for _ in range(15):
                     angle = random.uniform(0, 2 * math.pi)
                     dist = random.uniform(radius * 0.5, radius * 1.2)
                     px = center + math.cos(angle) * dist
                     py = center + math.sin(angle) * dist
                     size = random.randint(2, 5)
-                    color = random.choice(['#FF6B9D', '#FFB6C1', '#888888', '#FF4500'])
+                    color = random.choice(["#FF6B9D", "#FFB6C1", "#888888", "#FF4500"])
                     draw.ellipse([px - size, py - size, px + size, py + size], fill=color)
             if i == 0 or i == 1:
-                draw.ellipse([center - 40, center - 40, center + 40, center + 40], fill='#FFFFFF')
+                draw.ellipse([center - 40, center - 40, center + 40, center + 40], fill="#FFFFFF")
             frames.append(img)
         return frames
     
     def create_dead_sprites(self):
         frames = []
         for i in range(4):
-            img = Image.new('RGBA', (self.pet_size, self.pet_size), (255, 255, 255, 0))
+            img = Image.new("RGBA", (self.pet_size, self.pet_size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             center = self.pet_size // 2
             float_offset = int(math.sin(i / 4 * math.pi * 2) * 3)
             base_y = 50 + float_offset
-            draw.rectangle([center - 45, base_y + 20, center + 45, base_y + 35], fill='#E0E0FF88', outline='#B0B0FF', width=2)
-            draw.rectangle([center - 40, base_y + 5, center + 40, base_y + 17], fill='#F0F0FF88', outline='#C0C0FF', width=2)
+            draw.rectangle([center - 45, base_y + 20, center + 45, base_y + 35], fill="#E0E0FF88", outline="#B0B0FF", width=2)
+            draw.rectangle([center - 40, base_y + 5, center + 40, base_y + 17], fill="#F0F0FF88", outline="#C0C0FF", width=2)
             eye_y = base_y + 10
-            draw.line([center - 15, eye_y - 2, center - 11, eye_y + 2], fill='#6495ED', width=2)
-            draw.line([center - 15, eye_y + 2, center - 11, eye_y - 2], fill='#6495ED', width=2)
-            draw.line([center + 11, eye_y - 2, center + 15, eye_y + 2], fill='#6495ED', width=2)
-            draw.line([center + 11, eye_y + 2, center + 15, eye_y - 2], fill='#6495ED', width=2)
+            draw.line([center - 15, eye_y - 2, center - 11, eye_y + 2], fill="#6495ED", width=2)
+            draw.line([center - 15, eye_y + 2, center - 11, eye_y - 2], fill="#6495ED", width=2)
+            draw.line([center + 11, eye_y - 2, center + 15, eye_y + 2], fill="#6495ED", width=2)
+            draw.line([center + 11, eye_y + 2, center + 15, eye_y - 2], fill="#6495ED", width=2)
             halo_y = base_y - 10
-            draw.ellipse([center - 25, halo_y, center + 25, halo_y + 8], outline='#FFD700', width=3)
+            draw.ellipse([center - 25, halo_y, center + 25, halo_y + 8], outline="#FFD700", width=3)
             wisp_y = base_y + 35
             wave = int(math.sin((i + 1) / 4 * math.pi * 2) * 5)
-            draw.ellipse([center - 20 + wave, wisp_y, center - 10 + wave, wisp_y + 10], fill='#E0E0FF44', outline='#B0B0FF88', width=1)
-            draw.ellipse([center + 10 - wave, wisp_y + 3, center + 20 - wave, wisp_y + 13], fill='#E0E0FF44', outline='#B0B0FF88', width=1)
+            draw.ellipse([center - 20 + wave, wisp_y, center - 10 + wave, wisp_y + 10], fill="#E0E0FF44", outline="#B0B0FF88", width=1)
+            draw.ellipse([center + 10 - wave, wisp_y + 3, center + 20 - wave, wisp_y + 13], fill="#E0E0FF44", outline="#B0B0FF88", width=1)
             if i % 2 == 0:
-                draw.text([center - 10, base_y + 48], "RIP", fill='#888888')
+                draw.text([center - 10, base_y + 48], "RIP", fill="#888888")
             frames.append(img)
         return frames
     
@@ -539,7 +539,7 @@ class DesktopPet:
     
     def update_position(self):
         try:
-            self.root.geometry(f'+{int(self.x)}+{int(self.y)}')
+            self.root.geometry(f"+{int(self.x)}+{int(self.y)}")
         except:
             pass
     
@@ -565,31 +565,31 @@ class DesktopPet:
         if self.particles:
             self.draw_particles()
         self.current_image = frames[self.frame]
-        self.canvas.create_image(0, 0, anchor='nw', image=self.current_image)
+        self.canvas.create_image(0, 0, anchor="nw", image=self.current_image)
         if self.is_dead and self.state == "dead":
             time_left = max(0, 5 - self.death_timer // 20)
             self.canvas.create_text(
                 self.pet_size // 2, self.pet_size - 10,
                 text=f"Respawning in {time_left}...",
-                fill='#888888', font=('Arial', 10)
+                fill="#888888", font=("Arial", 10)
             )
         self.root.after(delay, self.animate)
     
     def draw_particles(self):
         particles_to_remove = []
         for particle in self.particles:
-            particle['vy'] += 0.5
-            particle['x'] += particle['vx']
-            particle['y'] += particle['vy']
-            particle['vx'] *= 0.98
-            particle['life'] -= 1
-            px = particle['x'] - self.x
-            py = particle['y'] - self.y
-            if 0 <= px <= self.pet_size and 0 <= py <= self.pet_size and particle['life'] > 0:
-                size = particle['size']
+            particle["vy"] += 0.5
+            particle["x"] += particle["vx"]
+            particle["y"] += particle["vy"]
+            particle["vx"] *= 0.98
+            particle["life"] -= 1
+            px = particle["x"] - self.x
+            py = particle["y"] - self.y
+            if 0 <= px <= self.pet_size and 0 <= py <= self.pet_size and particle["life"] > 0:
+                size = particle["size"]
                 self.canvas.create_oval(px - size, py - size, px + size, py + size,
-                                        fill=particle['color'], outline='')
-            if particle['life'] <= 0:
+                                        fill=particle["color"], outline="")
+            if particle["life"] <= 0:
                 particles_to_remove.append(particle)
         for particle in particles_to_remove:
             self.particles.remove(particle)
@@ -597,8 +597,8 @@ class DesktopPet:
     def update_physics(self):
         if not self.running:
             return
-        screen_left = getattr(self, 'screen_left', 0)
-        screen_top = getattr(self, 'screen_top', 0)
+        screen_left = getattr(self, "screen_left", 0)
+        screen_top = getattr(self, "screen_top", 0)
         screen_w = self.screen_width
         screen_h = self.screen_height
         
@@ -666,8 +666,8 @@ class DesktopPet:
                 )[0]
                 if action in ["walk", "run"]:
                     self.state = action
-                    left = getattr(self, 'screen_left', 0)
-                    top = getattr(self, 'screen_top', 0)
+                    left = getattr(self, "screen_left", 0)
+                    top = getattr(self, "screen_top", 0)
                     x_low = left + 50
                     x_high = left + max(100, self.screen_width - self.pet_size - 50)
                     y_low = top + 50
@@ -725,11 +725,11 @@ class DesktopPet:
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(5, 15)
             self.particles.append({
-                'x': center_x, 'y': center_y,
-                'vx': math.cos(angle) * speed, 'vy': math.sin(angle) * speed,
-                'life': random.randint(20, 40),
-                'color': random.choice(['#FF6B9D', '#FFB6C1', '#FF4500', '#FFA500', '#888888']),
-                'size': random.randint(2, 6)
+                "x": center_x, "y": center_y,
+                "vx": math.cos(angle) * speed, "vy": math.sin(angle) * speed,
+                "life": random.randint(20, 40),
+                "color": random.choice(["#FF6B9D", "#FFB6C1", "#FF4500", "#FFA500", "#888888"]),
+                "size": random.randint(2, 6)
             })
         self.root.after(800, self.become_ghost)
     
@@ -763,7 +763,7 @@ class DesktopPet:
     def on_click(self, event):
         if self.is_dead:
             return
-        current_time = self.root.tk.call('clock', 'milliseconds')
+        current_time = self.root.tk.call("clock", "milliseconds")
         if current_time - self.last_click_time < 300:
             self.click_count += 1
             if self.click_count >= 2:
@@ -848,8 +848,8 @@ class DesktopPet:
     def cmd_walk(self):
         self.state = "walk"
         self.frame = 0
-        left = getattr(self, 'screen_left', 0)
-        top = getattr(self, 'screen_top', 0)
+        left = getattr(self, "screen_left", 0)
+        top = getattr(self, "screen_top", 0)
         x_low = left + 50
         x_high = left + max(100, self.screen_width - self.pet_size - 50)
         y_low = top + 50
@@ -866,8 +866,8 @@ class DesktopPet:
     def cmd_run(self):
         self.state = "run"
         self.frame = 0
-        left = getattr(self, 'screen_left', 0)
-        top = getattr(self, 'screen_top', 0)
+        left = getattr(self, "screen_left", 0)
+        top = getattr(self, "screen_top", 0)
         x_low = left + 50
         x_high = left + max(100, self.screen_width - self.pet_size - 50)
         y_low = top + 50
@@ -904,63 +904,64 @@ class DesktopPet:
         self.velocity_y = 0
 
     def handle_ai_command(self, cmd: dict) -> str:
-        name = cmd.get('command') or ''
-        args = cmd.get('args') or {}
+        name = cmd.get("command") or ""
+        args = cmd.get("args") or {}
         name_l = name.lower()
         try:
-            if name_l in ('walk', 'cmd_walk'):
-                self.cmd_walk(); return 'Started walking.'
-            if name_l in ('run', 'cmd_run'):
-                self.cmd_run(); return 'Started running.'
-            if name_l in ('sit', 'cmd_sit'):
-                self.cmd_sit(); return 'Sitting.'
-            if name_l in ('pet', 'cmd_pet'):
-                self.cmd_pet(); return 'Petted.'
-            if name_l in ('sleep', 'cmd_sleep'):
-                self.cmd_sleep(); return 'Sleeping.'
-            if name_l in ('respawn',):
-                self.respawn(); return 'Respawned.'
-            if name_l in ('quit', 'exit'):
-                self.quit_app(); return 'Quitting app.'
-            if name_l in ('set_state',):
-                state = args.get('state') or args.get('s') or ''
-                if state:
-                    self.state = state
-                    self.frame = 0
-                    return f'Set state to {state}.'
-            if name_l in ('move_to', 'move', 'goto'):
-                x = args.get('x')
-                y = args.get('y')
-                try:
-                    if x is not None: self.x = float(x)
-                    if y is not None: self.y = float(y)
-                    self.update_position()
-                    return f'Moved to {self.x},{self.y}.'
-                except Exception:
-                    return 'Failed to move: invalid coordinates.'
-            if name_l in ('clear_history', 'clear'):
-                self.chat.clear_history(); return 'Cleared history.'
-            if name_l in ('view_screen', 'show_screen'):
-                self.chat.show_screen_view(); return 'Opened screen viewer.'
-            if name_l in ('save_screenshot', 'screenshot'):
-                img = self.chat.capture_screen()
-                if img:
-                    import datetime
-                    base = os.path.dirname(__file__)
-                    path = os.path.join(base, 'brain',
-                                        f'screenshot_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
-                    os.makedirs(os.path.dirname(path), exist_ok=True)
-                    img.save(path)
-                    return f'Screenshot saved to {path}.'
-                return 'Screenshot failed.'
-            if name_l in ('say', 'speak', 'message'):
-                text = args.get('text') or args.get('t') or ''
-                if text:
-                    self.chat.add_chat_message('Stapler-y', text, '#4A90E2')
-                    return 'Posted message.'
-            return f'Unknown command: {name}.'
+            match name_l:
+                case "walk" | "cmd_walk": 
+                    self.cmd_walk(); return "Started walking."
+                case "run" | "cmd_run":
+                    self.cmd_run(); return "Started running."
+                case "sit" | "cmd_sit":
+                    self.cmd_sit(); return "Sitting."
+                case "pet" | "cmd_pet":
+                    self.cmd_pet(); return "Petted."
+                case "sleep" | "cmd_sleep":
+                    self.cmd_sleep(); return "Sleeping."
+                case "respawn":
+                    self.respawn(); return "Respawned."
+                case "quit" | "exit":
+                    self.quit_app(); return "Quitting app."
+                case "set_state":
+                    state = args.get("state") or args.get("s") or ""
+                    if state:
+                        self.state = state
+                        self.frame = 0
+                        return f"Set state to {state}."
+                case "move_to" | "move" | "goto":
+                    x = args.get("x")
+                    y = args.get("y")
+                    try:
+                        if x is not None: self.x = float(x)
+                        if y is not None: self.y = float(y)
+                        self.update_position()
+                        return f"Moved to {self.x},{self.y}."
+                    except Exception:
+                        return "Failed to move: invalid coordinates."
+                case "clear_history" | "clear":
+                    self.chat.clear_history(); return "Cleared history."
+                case "view_screen" | "show_screen":
+                    self.chat.show_screen_view(); return "Opened screen viewer."
+                case "save_screenshot" | "screenshot":
+                    img = self.chat.capture_screen()
+                    if img:
+                        import datetime
+                        base = os.path.dirname(__file__)
+                        path = os.path.join(base, "brain",
+                                            f"screenshot_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                        os.makedirs(os.path.dirname(path), exist_ok=True)
+                        img.save(path)
+                        return f"Screenshot saved to {path}."
+                    return "Screenshot failed."
+                case "say" | "speak" | "message":
+                    text = args.get("text") or args.get("t") or ""
+                    if text:
+                        self.chat.add_chat_message("Stapler-y", text, "#4A90E2")
+                        return "Posted message."
+                case _: return f"Unknown command: {name}."
         except Exception as e:
-            return f'Error executing command {name}: {e}'
+            return f"Error executing command {name}: {e}"
 
     def quit_app(self):
         self.running = False
