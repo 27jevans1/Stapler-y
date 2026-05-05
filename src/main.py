@@ -1,3 +1,10 @@
+# Explicit imports so PyInstaller's static analyser always bundles
+# these local modules regardless of working directory or environment.
+import chat_win  # noqa: F401
+import ai        # noqa: F401
+import history   # noqa: F401
+import elderCore # noqa: F401
+
 from desktop_pet import DesktopPet
 
 
