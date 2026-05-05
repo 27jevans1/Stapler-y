@@ -2,141 +2,126 @@
 
 # Stapler-y: The modern version of Clippy
 
-Stapler-y is a small desktop pet that walks around your screen, responds to simple commands, and uses a chat interface backed by a local AI.
+Stapler-y is a desktop pet with a chat interface and simple AI-driven behavior. It can walk around your screen, respond to commands, open a screen viewer, save screenshots, and persist chat history.
 
-Features
-- Interactive desktop pet with animations (walk, run, jump, sit, sleep, explode/respawn).
-- Chat with the pet (history persisted to `brain/history.json`).
-- Clear chat history from the chat UI.
-- Screen viewer and screenshot capture (multi-monitor aware via `mss`).
-- AI can "see" the screen (screenshot passed to AI) and can issue commands to control the pet.
+## Key features
+- Desktop pet UI with animated states: walk, run, sit, pet, sleep, and respawn.
+- Chat interface that persists history to `brain/history.json`.
+- AI-powered responses via `ollama`, with an image or OCR fallback if `pytesseract` is available.
+- Screen viewer with multi-monitor support, manual refresh, 5s auto-refresh, and save-to-file.
+- AI command parsing for JSON, `COMMAND:` lines, and slash-style commands.
+- Alternate text-based CLI mode in `src/cli.py`.
 
-Quick start
-1. Create and activate a Python 3.10+ virtualenv (recommended):
+## Prerequisites
+- Python 3.10+
+- `pip` installed
+- Optional: Tesseract OCR for better screen-text fallback
 
-```powershell
+## Install
+From the repository root:
+
+\`\`\`powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-2. Install dependencies:
-
-```powershell
 pip install -r requirements.txt
-```
+\`\`\`
 
-3. (Optional) Install Tesseract OCR for Windows if you want OCR in chat:
-- Download & install from https://github.com/tesseract-ocr/tesseract
-- Ensure the `tesseract` binary is on your PATH.
+## Run
+From the repository root:
 
-4. Run the app:
+\`\`\`powershell
+python src/main.py
+\`\`\`
 
-```powershell
-python main.py
-```
+For the command-line interface instead of the desktop pet:
 
-Using the UI
-- Right-click the pet to open the context menu. Use "💬 Chat with Me!" to open the chat window.
-- In the chat you can send messages to the AI. Chat history is saved to `brain/history.json`.
-- Use the "Clear" button in the chat input area to clear history.
-- In the pet menu choose "👀 View Screen" to open the screen viewer.
-- Keyboard shortcuts (click the pet first to focus it): `Space` or `C` → chat, `S` → screen viewer.
+\`\`\`powershell
+python src/cli.py
+\`\`\`
 
-Screen viewer
-- **Monitor selector** — if multiple monitors are detected, pick which one to view.
-- **Refresh** — manually re-capture the screen.
-- **Auto (5s)** — toggle automatic refresh every 5 seconds.
-- **Save** — save the current capture to `brain/screenshot_<timestamp>.png`.
-- **Ask AI prompt bar** — type a question about what's on screen and press Enter or click "🤖 Ask AI". The reply appears in the chat window. Leave the prompt blank to use a sensible default ("What do you see?").
-- The status bar shows the source resolution, display resolution, and capture time.
-- Captures run on a background thread so the pet stays animated.
+## Testing
+Stapler-y includes unit tests to ensure code quality. To run the tests:
 
-AI command formats (how the AI can control the pet)
-- JSON command (preferred for structure):
+\`\`\`powershell
+pytest
+\`\`\`
 
-```json
+Or run specific test files:
+
+\`\`\`powershell
+pytest tests/test_history.py
+pytest tests/test_ai.py
+\`\`\`
+
+## Optional setup
+If you want OCR-based screen context when using a non-vision Ollama model:
+- Install Tesseract from https://github.com/tesseract-ocr/tesseract
+- Add the Tesseract installation folder to `PATH`
+
+## Using the desktop pet
+- Right-click the pet to open its context menu.
+- Use `💬 Chat with Me!` to open the chat window.
+- Use the chat input and `Send` to talk to Stapler-y.
+- Use the context menu buttons like `🚶 Walk`, `🏃 Run`, `🧎 Sit`, `❤️ Pet`, `😴 Sleep`, and `❌ Quit`.
+- `view_screen` or `show_screen` opens the screen viewer.
+
+## Screen viewer
+- Select a monitor if multiple displays are available.
+- Refresh the capture manually.
+- Enable `Auto (5s)` for an automatic refresh every 5 seconds.
+- Save the current view to `brain/screenshot_<timestamp>.png`.
+- The captured image is used as screen context for AI prompts when enabled.
+
+## AI command formats
+Stapler-y recognizes commands returned from the AI in three formats.
+
+### JSON command (preferred)
+\`\`\`json
 {"command":"jump"}
-```
+\`\`\`
 
-- Line-based commands:
+### Line-based command
+\`\`\`
+COMMAND: move_to x=200 y=150
+\`\`\`
 
-```
-COMMAND: jump
-/run
-/move_to x=200 y=300
-```
-
-Supported commands
-- `walk`, `run`, `jump`, `sit`, `eat`, `pet`, `sleep`, `respawn`, `quit`/`exit`
-- `set_state state=<state>` — set arbitrary pet state
-- `move_to x=<num> y=<num>` — move pet to coordinates
-- `clear_history` — clear chat history file and UI
-- `view_screen` — open the screen viewer
-- `save_screenshot` — save current screenshot to `brain/`
-- `say text=<message>` — post a chat message as the pet
-
-How it works (high level)
-- `desktop_pet.py` controls the UI, animations, and interactions.
-- `ai.py` exposes `get_response(prompt, screen_image=None)`; when a screenshot is provided it is encoded as base64 and passed directly to vision-capable Ollama models (e.g. `llava`, `gemma3`). For non-vision models, OCR via pytesseract is attempted as a text fallback.
-- Set the `STAPLERY_OLLAMA_MODEL` environment variable to choose your model (default: `llama3`). Use a vision model like `llava` to enable screen-awareness.
-- `desktop_pet` captures the screen with `mss` (fallback to Pillow's ImageGrab) and passes the image to `ai.get_response`.
-- If the AI returns a command (JSON or command lines), `desktop_pet` will parse and execute it and post a `System` result back to chat.
-
-Security & safety
-- Commands are executed locally and may perform actions like quitting the app or moving the pet. If you want stricter controls, add a confirmation prompt or a whitelist for allowed commands.
-
-Development notes
-- Tests: none included yet. A follow-up task can add simple unit tests and a run script.
-- Packaging: this is a light prototype; consider packaging with PyInstaller for distribution.
-
-Files of interest
-- `desktop_pet.py` — main UI & logic
-- `ai.py` — AI wrapper and integration (fallback responses are hardcoded in this file)
-- `brain/history.json` — persisted chat history
-
-Examples
---------
-
-1) Quick AI command test (JSON): have the AI respond with this exact JSON in chat to make the pet jump:
-
-```json
-{"command": "jump"}
-```
-
-2) Line-command example: the AI can reply with a line like:
-
-```
-COMMAND: move_to x=300 y=200
-```
-
-3) Slash-style example:
-
-```
+### Slash-style command
+\`\`\`
 /save_screenshot
-```
+\`\`\`
 
-These formats are parsed automatically by `desktop_pet` and executed. Execution results are posted back as `System` messages.
+## Supported commands
+- `walk`, `run`, `sit`, `pet`, `sleep`, `respawn`
+- `quit`, `exit`
+- `set_state state=<state>`
+- `move_to x=<num> y=<num>`
+- `clear_history`, `clear`
+- `view_screen`, `show_screen`
+- `save_screenshot`, `screenshot`
+- `say text=<message>`
 
-Troubleshooting
----------------
+## How it works
+- `src/desktop_pet.py` is the main GUI and pet behavior implementation.
+- `src/chat_win.py` handles the chat window, screen capture, and AI interaction.
+- `src/ai.py` sends prompts to Ollama when available, or returns fallback responses.
+- `src/history.py` persists conversation history and parses AI commands.
+- `src/main.py` is the desktop entry point.
+- `src/cli.py` provides a text-mode REPL for the same command formats.
 
-- Screen capture returns blank or errors:
-	- Ensure `mss` is installed (`pip install mss`). `mss` is the preferred backend and handles multi-monitor setups.
-	- If `mss` is not available, Pillow's `ImageGrab` is used; on some Linux setups ImageGrab requires an X server.
+## Files of interest
+- `src/desktop_pet.py` — main pet UI and command handling
+- `src/chat_win.py` — chat window, screen viewer, screenshot capture
+- `src/ai.py` — AI integration, image/OCR context, fallback behavior
+- `src/history.py` — history persistence and command parsing
+- `src/main.py` — desktop app entry point
+- `src/cli.py` — command-line interface
 
-- OCR (text from screen) not appearing or empty:
-	- Install `pytesseract` and the Tesseract binary. On Windows, install the official Tesseract installer and add the installation folder to your PATH.
-	- Verify `pytesseract.image_to_string()` works in a Python REPL.
+## Troubleshooting
+- If the app fails to start, verify dependencies with `pip install -r requirements.txt`.
+- If screen capture fails, ensure `mss` is installed; Pillow's `ImageGrab` is a fallback.
+- If OCR text is empty, install `pytesseract` and the Tesseract binary.
+- If history does not save, check that `brain/history.json` is writable.
 
-- Chat history not saving:
-	- Check that `brain/history.json` exists and is writable. The app creates it on first save.
-
-- App fails to start or throws import errors:
-	- Run `pip install -r requirements.txt` to install listed dependencies.
-
-Testing AI command flow
------------------------
-
-1. Run the app: `python main.py`.
-2. Open the chat (`Right-click → Chat with Me!`).
-3. Paste a JSON command like `{"command":"jump"}` into the chat input and send it. The pet should perform the action and you should see a `System` message confirming execution.
+## Notes
+- This project is a prototype and does not include automated tests yet.
+- Packaging for distribution is not included; the repository currently targets local development and experimentation.
