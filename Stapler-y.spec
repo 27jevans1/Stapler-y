@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 
-# Always resolve src/ relative to this spec file, regardless of
-# where PyInstaller is invoked from (local machine, CI, etc.)
-src_path = os.path.join(os.path.dirname(os.path.abspath(SPECPATH)), 'src')
+# SPECPATH is the directory containing this spec file (the repo root).
+# src/ lives directly inside it, so no dirname() needed.
+src_path = os.path.join(os.path.abspath(SPECPATH), 'src')
 
 block_cipher = None
 
