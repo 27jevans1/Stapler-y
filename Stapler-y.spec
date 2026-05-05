@@ -1,9 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
 
-# SPECPATH is the directory containing this spec file (the repo root).
-# src/ lives directly inside it, so no dirname() needed.
+# Resolve src/ absolute path and inject it into sys.path so PyInstaller
+# can actually find and analyse the local modules during the build phase.
 src_path = os.path.join(os.path.abspath(SPECPATH), 'src')
+sys.path.insert(0, src_path)
 
 block_cipher = None
 
