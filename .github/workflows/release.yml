@@ -31,9 +31,8 @@ jobs:
           pytest tests/ -v
 
       - name: Build EXE
-        run: |
-          cd src
-          pyinstaller --clean --noconfirm --onefile --windowed --name "Stapler-y" --distpath ..\dist main.py
+        working-directory: src
+        run: pyinstaller --clean --noconfirm --onefile --windowed --name "Stapler-y" --distpath ../dist main.py
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
