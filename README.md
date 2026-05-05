@@ -20,38 +20,38 @@ Stapler-y is a desktop pet with a chat interface and simple AI-driven behavior. 
 ## Install
 From the repository root:
 
-\`\`\`powershell
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-\`\`\`
+```
 
 ## Run
 From the repository root:
 
-\`\`\`powershell
+```powershell
 python src/main.py
-\`\`\`
+```
 
 For the command-line interface instead of the desktop pet:
 
-\`\`\`powershell
+```powershell
 python src/cli.py
-\`\`\`
+```
 
 ## Testing
 Stapler-y includes unit tests to ensure code quality. To run the tests:
 
-\`\`\`powershell
+```powershell
 pytest
-\`\`\`
+```
 
 Or run specific test files:
 
-\`\`\`powershell
+```powershell
 pytest tests/test_history.py
 pytest tests/test_ai.py
-\`\`\`
+```
 
 ## Optional setup
 If you want OCR-based screen context when using a non-vision Ollama model:
@@ -76,19 +76,19 @@ If you want OCR-based screen context when using a non-vision Ollama model:
 Stapler-y recognizes commands returned from the AI in three formats.
 
 ### JSON command (preferred)
-\`\`\`json
+```json
 {"command":"jump"}
-\`\`\`
+```
 
 ### Line-based command
-\`\`\`
+```
 COMMAND: move_to x=200 y=150
-\`\`\`
+```
 
 ### Slash-style command
-\`\`\`
+```
 /save_screenshot
-\`\`\`
+```
 
 ## Supported commands
 - `walk`, `run`, `sit`, `pet`, `sleep`, `respawn`
