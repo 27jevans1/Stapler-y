@@ -69,26 +69,7 @@ If you want OCR-based screen context when using a non-vision Ollama model:
 - Select a monitor if multiple displays are available.
 - Refresh the capture manually.
 - Enable `Auto (5s)` for an automatic refresh every 5 seconds.
-- Save the current view to `brain/screenshot_<timestamp>.png`.
 - The captured image is used as screen context for AI prompts when enabled.
-
-## AI command formats
-Stapler-y recognizes commands returned from the AI in three formats.
-
-### JSON command (preferred)
-```json
-{"command":"jump"}
-```
-
-### Line-based command
-```
-COMMAND: move_to x=200 y=150
-```
-
-### Slash-style command
-```
-/save_screenshot
-```
 
 ## Supported commands
 - `walk`, `run`, `sit`, `pet`, `sleep`, `respawn`
@@ -108,20 +89,8 @@ COMMAND: move_to x=200 y=150
 - `src/main.py` is the desktop entry point.
 - `src/cli.py` provides a text-mode REPL for the same command formats.
 
-## Files of interest
-- `src/desktop_pet.py` — main pet UI and command handling
-- `src/chat_win.py` — chat window, screen viewer, screenshot capture
-- `src/ai.py` — AI integration, image/OCR context, fallback behavior
-- `src/history.py` — history persistence and command parsing
-- `src/main.py` — desktop app entry point
-- `src/cli.py` — command-line interface
-
 ## Troubleshooting
 - If the app fails to start, verify dependencies with `pip install -r requirements.txt`.
 - If screen capture fails, ensure `mss` is installed; Pillow's `ImageGrab` is a fallback.
 - If OCR text is empty, install `pytesseract` and the Tesseract binary.
 - If history does not save, check that `brain/history.json` is writable.
-
-## Notes
-- This project is a prototype and does not include automated tests yet.
-- Packaging for distribution is not included; the repository currently targets local development and experimentation.
