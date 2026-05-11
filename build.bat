@@ -1,1 +1,1 @@
-pyinstaller --clean --noconfirm --onefile --windowed --name "Stapler-y" src/main.py
+pyinstaller --noconfirm --onefile --windowed --name "Stapler-y" src/main.py
