@@ -32,6 +32,11 @@ jobs:
 
       - name: Build EXE
         run: .\build.bat
+      
+      - name: Run tests
+        run: |
+          pip install pytest
+          pytest tests/ -v
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
