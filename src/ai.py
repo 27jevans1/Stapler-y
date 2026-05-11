@@ -20,7 +20,7 @@ except Exception:
 # System prompt
 # ---------------------------------------------------------------------------
 
-from elderCore import (
+from elder_core import (
     ELDER_SYSTEM_MESSAGE,
     elderToggle
 )
