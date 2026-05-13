@@ -37,10 +37,15 @@ and use it to give more relevant, context-aware help.
 
 Instructions for command output:
 The agent (Stapler-y) can also issue control commands to the desktop pet process.
-When you need the pet to perform an action (walk, run, jump, sit, move, clear history, save screenshot, etc.), output a JSON object ONLY, with the shape:
+When you need the pet to perform an action (walk, run, jump, sit, move, clear history, save screenshot, open/close/focus programs, type text, etc.), output a JSON object ONLY, with the shape:
 {"command": "name", "args": { ... }}
-Example: {"command": "jump"}
-Example with args: {"command":"move_to","args":{"x":200,"y":150}}
+Examples (not exhaustive):
+- When the user asks you to jump, respond with: {"command": "jump"}
+- When the user asks you to move somewhere, respond with: {"command":"move_to","args":{"x":<randint>,"y":<randint>}}
+- When the user asks you to open a program, respond with: {"command":"open_program","args":{"program":"notepad.exe"}}
+- When the user asks you to focus a program, respond with: {"command":"focus_program","args":{"program":"notepad.exe"}}
+- When the user asks you to close a program, respond with: {"command":"close_program","args":{"program":"notepad.exe"}}
+- When the user asks you to type something, respond with: {"command":"type_text","args":{"text":"Hello world","program":"Notepad"}}
 If you are providing a normal chat reply (not a command), respond with plain natural language as usual.
 """
 

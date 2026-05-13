@@ -4,7 +4,13 @@ import random
 import math
 import os
 import time
+import subprocess
 from PIL import Image, ImageDraw, ImageTk, ImageOps
+
+try:
+    import pyautogui
+except ImportError:
+    pyautogui = None
 
 from chat_win import ChatWindow
 
@@ -903,6 +909,24 @@ class DesktopPet:
         self.velocity_x = 0
         self.velocity_y = 0
 
+    def _focus_window(self, title: str):
+        if not pyautogui:
+            return None
+        windows = pyautogui.getWindowsWithTitle(title)
+        if not windows:
+            return None
+        window = windows[0]
+        try:
+            if getattr(window, "isMinimized", False):
+                window.restore()
+            window.activate()
+            start = time.time()
+            while not getattr(window, "isActive", False) and time.time() - start < 1.0:
+                time.sleep(0.05)
+            return window
+        except Exception:
+            return None
+
     def handle_ai_command(self, cmd: dict) -> str:
         name = cmd.get("command") or ""
         args = cmd.get("args") or {}
@@ -959,6 +983,53 @@ class DesktopPet:
                     if text:
                         self.chat.add_chat_message("Stapler-y", text, "#4A90E2")
                         return "Posted message."
+                case "open_program" | "open":
+                    program = args.get("program") or args.get("p") or ""
+                    if program:
+                        try:
+                            subprocess.Popen(program)
+                            return f"Opened program: {program}."
+                        except Exception as e:
+                            return f"Failed to open program: {e}"
+                    return "No program specified."
+                case "close_program" | "close":
+                    program = args.get("program") or args.get("p") or ""
+                    if program and pyautogui:
+                        try:
+                            windows = pyautogui.getWindowsWithTitle(program)
+                            if windows:
+                                windows[0].close()
+                                return f"Closed program: {program}."
+                            else:
+                                return f"No window found with title: {program}."
+                        except Exception as e:
+                            return f"Failed to close program: {e}"
+                    return "pyautogui not available or no program specified."
+                case "focus_program" | "focus":
+                    program = args.get("program") or args.get("p") or ""
+                    if program and pyautogui:
+                        try:
+                            window = self._focus_window(program)
+                            if window:
+                                return f"Focused program: {program}."
+                            return f"No window found with title: {program}."
+                        except Exception as e:
+                            return f"Failed to focus program: {e}"
+                    return "pyautogui not available or no program specified."
+                case "type_text" | "type":
+                    text = args.get("text") or args.get("t") or ""
+                    program = args.get("program") or args.get("p") or ""
+                    if text and pyautogui:
+                        try:
+                            if program:
+                                window = self._focus_window(program)
+                                if not window:
+                                    return f"No window found with title: {program}."
+                            pyautogui.typewrite(text)
+                            return f"Typed text: {text}" + (f" in {program}" if program else "")
+                        except Exception as e:
+                            return f"Failed to type text: {e}"
+                    return "pyautogui not available or no text specified."
                 case _: return f"Unknown command: {name}."
         except Exception as e:
             return f"Error executing command {name}: {e}"

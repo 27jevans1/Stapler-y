@@ -80,6 +80,10 @@ If you want OCR-based screen context when using a non-vision Ollama model:
 - `view_screen`, `show_screen`
 - `save_screenshot`, `screenshot`
 - `say text=<message>`
+- `open_program program=<executable>`
+- `close_program program=<window_title>`
+- `focus_program program=<window_title>`
+- `type_text text=<text> program=<window_title>` (optional program to focus first)
 
 ## How it works
 - `src/desktop_pet.py` is the main GUI and pet behavior implementation.
